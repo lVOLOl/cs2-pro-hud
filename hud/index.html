@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+<div id="no-data" class="no-data">Ожидание данных от CS2 (GSI). Зайдите в матч и убедитесь, что <code>cfg/gamestate_integration_prohud.vdf</code> скопирован в папку cfg игры.</div>
+
+<div id="topbar">
+  <div class="team team--ct">
+    <img id="ct_logo" class="team__logo" alt="">
+    <span id="ct_score" class="team__score">0</span>
+  </div>
+  <div id="round_timer" class="topbar__timer">1:55</div>
+  <div class="team team--t">
+    <span id="t_score" class="team__score">0</span>
+    <img id="t_logo" class="team__logo" alt="">
+  </div>
+</div>
+
+<div id="defuse_timer_wrap" class="defuse-timer" aria-hidden="true">
+  <span class="defuse-timer__label">DEFUSE</span>
+  <span id="defuse_timer" class="defuse-timer__value">0:00</span>
+</div>
+
+<div id="players_ct" class="players players--ct"></div>
+<div id="players_t" class="players players--t"></div>
+
+<div id="observed" class="observed">
+  <img id="observed_avatar" class="observed__avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'/%3E" alt="">
+  <div class="observed__info">
+    <span id="observed_name" class="observed__name">—</span>
+    <span id="observed_kda" class="observed__kda">0 | 0 | 0</span>
+    
+  </div>
+</div>
+
+<!-- <div id="bomb_panel" class="bomb-panel">
+  <img class="bomb-panel__icon" src="assets/bomb.png" alt="">
+  <span id="bomb_timer" class="bomb-panel__timer"></span>
+</div> -->
+
+<div id="killfeed" class="killfeed"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="main.js"></script>
+<script src="players.js"></script>
+<script src="killfeed.js"></script>
+
+</body>
+</html>
