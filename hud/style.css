@@ -3,12 +3,13 @@
   --bg-dark: #0a0b0e;
   --bg-panel: rgba(12, 14, 18, 0.92);
   --bg-card: rgba(18, 20, 26, 0.88);
+  --bg-kf: rgba(18, 20, 26, 0.95);
   --accent: rgb(255, 255, 255);;
   --accent-dim: rgba(245, 158, 11, 1);
   --ct: #3b82f6;
-  --ct-dim: rgba(59, 130, 246, 0.35);
+  --ct-dim: rgba(59, 130, 246, 0.7);
   --t: #ef4444;
-  --t-dim: rgba(239, 68, 68, 0.35);
+  --t-dim: rgba(239, 68, 68, 0.7);
   --text: #f1f5f9;
   --text-muted: #94a3b8;
   --border: rgba(255, 255, 255, 0.08);
@@ -107,13 +108,30 @@ body {
   border: 1px solid var(--accent-dim);
   min-width: 100px;
   text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   transition: color 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.topbar__bomb-icon {
+  display: none;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  opacity: 0.9;
+  flex-shrink: 0;
 }
 
 .topbar__timer--bomb {
   color: #ef4444;
   border-color: rgba(239, 68, 68, 0.6);
   animation: bombTick 1s ease-in-out infinite;
+}
+.topbar__timer--bomb .topbar__bomb-icon {
+  display: block;
+  filter: invert(35%) sepia(90%) saturate(700%) hue-rotate(340deg);
 }
 
 @keyframes bombTick {
@@ -124,41 +142,70 @@ body {
 /* ========== DEFUSE TIMER (center screen, green) ========== */
 .defuse-timer {
   position: fixed;
-  top: 50%;
+  top: 58%;
   left: 50%;
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 20px 48px;
-  background: rgba(12, 14, 18, 0.95);
+  gap: 8px;
+  padding: 24px 56px;
+  background: rgba(12, 14, 18, 0.97);
   border: 2px solid #22c55e;
   border-radius: var(--radius-lg);
   z-index: 200;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
+  box-shadow: 0 0 40px rgba(34, 197, 94, 0.2);
 }
 
 .defuse-timer.visible {
   opacity: 1;
 }
 
+.defuse-timer__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.defuse-timer__icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: invert(70%) sepia(60%) saturate(400%) hue-rotate(90deg) brightness(1.1);
+  opacity: 0.9;
+}
+
 .defuse-timer__label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
   color: #22c55e;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.2em;
+}
+
+.defuse-timer__kit {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: #22c55e;
+  border-radius: 3px;
+  padding: 1px 5px;
+  letter-spacing: 0.08em;
 }
 
 .defuse-timer__value {
   font-family: var(--font-display);
-  font-size: 56px;
-  letter-spacing: 0.08em;
+  font-size: 72px;
+  letter-spacing: 0.04em;
   color: #22c55e;
   line-height: 1;
 }
+
+/* ========== TEAM SCORE COLORS ========== */
+.team--ct .team__score { color: var(--ct); }
+.team--t  .team__score { color: var(--t); }
 
 /* ========== PLAYER CARDS (bottom left / bottom right) ========== */
 .players {
@@ -166,156 +213,242 @@ body {
   bottom: 80px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 5px;
   z-index: 50;
 }
 
-.players--ct {
-  left: 24px;
-}
-
-.players--t {
-  right: 24px;
-}
+.players--ct { left: 24px; }
+.players--t  { right: 24px; }
 
 .player {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
   background: var(--bg-card);
-  padding: 8px 12px 8px 6px;
+  padding: 7px 10px 7px 6px;
   border-radius: var(--radius);
-  width: 400px;
-  height: 90px;
+  width: 280px;
+  height: 82px;
   border: 1px solid var(--border);
   position: relative;
   overflow: hidden;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: opacity 0.3s;
 }
 
-.player:hover {
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-}
+.player--dead { opacity: 0.85; }
 
 .player__accent {
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 0; top: 0; bottom: 0;
   width: 3px;
   border-radius: 3px 0 0 3px;
   z-index: 9;
 }
-
-.player--ct .player__accent {
-  background: linear-gradient(180deg, var(--ct) 0%, transparent 100%);
-}
-
-.player--t .player__accent {
-  background: linear-gradient(180deg, var(--t) 0%, transparent 100%);
-}
+.player--ct .player__accent { background: linear-gradient(180deg, var(--ct) 0%, transparent 100%); }
+.player--t  .player__accent { background: linear-gradient(180deg, var(--t)  0%, transparent 100%); }
 
 .player__avatar-wrap {
   flex-shrink: 0;
-  width: 40px;
-  height: 40px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   overflow: hidden;
   border: 2px solid var(--border);
   background: var(--bg-dark);
   z-index: 9;
 }
+.player__avatar { width: 100%; height: 100%; object-fit: cover; }
 
-.player__avatar {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
+/* Тело карточки */
+.player__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   z-index: 9;
 }
 
-.player__info {
-  flex: 1;
-  min-width: 0;
-  z-index: 9;
+.player__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
 }
 
 .player__name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
-  width: 65%;
   text-overflow: ellipsis;
-  margin-bottom: 4px;
-  z-index: 9;
+  flex: 1;
+  min-width: 0;
+}
+.players--t .player__name { text-align: right; }
+.players--t .player__equip { margin-left: 0; margin-right: auto; }
+.player__kd {
+  display: flex;
+  align-items: center;
+  font-family: var(--font-display);
+  font-size: 21px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.player__kd-k   { color: #22c55e; }
+.player__kd-sep { color: var(--text-muted); margin: 0 2px; }
+.player__kd-d   { color: #ef4444; }
+
+/* Строка с оружием, гранатами, бронёй */
+.player__loadout {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: nowrap;
 }
 
-.player__hp-wrap {
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 2px;
-  overflow: hidden;
-  z-index: 9;
+/* Слот оружия */
+.player__wslot {
+  display: flex;
+  align-items: center;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+.player__wslot.active { opacity: 1; }
+
+.player__wslot--primary img {
+  height: 22px;
+  width: 54px;
+  object-fit: contain;
+  filter: brightness(1.2);
+}
+.player__wslot--pistol img {
+  height: 18px;
+  width: 34px;
+  object-fit: contain;
 }
 
+/* CT слева — дуло вправо (естественная ориентация SVG).
+   T справа — дуло влево (зеркало). */
+.player--t .player__wslot img { transform: scaleX(-1); }
+
+/* T-карточки зеркалим: аватар вправо, статы/армор влево, оружие вправо */
+.player--t {
+  flex-direction: row-reverse;
+}
+.player--t .player__accent {
+  left: auto;
+  right: 0;
+  border-radius: 0 3px 3px 0;
+}
+.player--t .player__top {
+  flex-direction: row-reverse;
+}
+.player--t .player__loadout {
+  flex-direction: row-reverse;
+}
+.player--t .player__equip {
+  margin-left: 0;
+}
+
+/* Гранаты */
+.player__grenades {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.player__gren {
+  position: relative;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+}
+.player__gren.active { opacity: 1; }
+.player__gren img { width: 18px; height: 18px; object-fit: contain; }
+.player__gren-count {
+  position: absolute;
+  bottom: -3px; right: -3px;
+  font-size: 8px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.75);
+  border-radius: 50%;
+  width: 10px; height: 10px;
+  display: flex; align-items: center; justify-content: center;
+  line-height: 1;
+}
+
+/* Броня + бомба/дефьюзер */
+.player__equip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+.player__armor {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  opacity: 0.9;
+}
+.player__armor--none {
+  opacity: 0.15;
+  filter: grayscale(1);
+}
+.player__special {
+  display: flex;
+  align-items: center;
+  opacity: 0.35;
+  width: 26px;
+  height: 26px;
+  transition: opacity 0.15s;
+}
+.player__special.active { opacity: 1; }
+.player__special img { width: 18px; height: 18px; object-fit: contain; }
+
+/* HP-бар — подложка через всю карточку */
 .player__hpbar {
   position: absolute;
+  top: 0; left: 0;
   height: 100%;
-  border-radius: 2px;
+  border-radius: var(--radius);
   transition: width 0.25s ease;
   z-index: 0;
 }
-
 .player--ct .player__hpbar {
   background: linear-gradient(90deg, #22c55e 0%, #3b82f6 100%);
   opacity: 0.5;
 }
-
 .player--t .player__hpbar {
   background: linear-gradient(90deg, #ef4444 0%, #f97316 100%);
   opacity: 0.5;
 }
 
-.player__weapon {
-  width: 44px;
-  height: 24px;
-  object-fit: contain;
-  filter: brightness(1.1);
-  z-index: 9;
-}
-
-.player__weapon-fallback {
-  display: none;
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  max-width: 44px;
+/* ========== MINIMAP ========== */
+.minimap {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  width: 350px;
+  height: 350px;
+  border-radius: var(--radius);
   overflow: hidden;
-  text-overflow: ellipsis;
-  z-index: 9;
+  border: 1px solid var(--border);
+  background: rgba(10,11,14,0.955);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
 }
-
-.player__weapon-fallback.show {
-  display: inline-block;
+.minimap__canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
-.player__info-row{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    z-index: 9;
-}
-.player__money {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--accent);
-  background: var(--accent-dim);
-  padding: 4px 10px;
-  border-radius: 4px;
-  min-width: 56px;
-  text-align: center;
-  z-index: 9;
+.minimap--two-floor {
+  width: 480px;
 }
 
 /* ========== BOMB PANEL ========== */
@@ -355,86 +488,104 @@ body {
   right: 24px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 5px;
   z-index: 50;
-  max-width: 320px;
 }
 
 .killfeed .kill {
-  background: var(--bg-card);
-  padding: 8px 14px;
+  background: var(--bg-kf);
+  padding: 5px 9px;
   border-radius: var(--radius);
   border: 1px solid var(--border);
-  font-size: 13px;
-  font-weight: 500;
+  font-size: 16px;
+  font-weight: 700;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
   gap: 4px;
-  animation: killIn 0.25s ease;
+  width: fit-content;
+  min-width: 220px;
+  max-width: 480px;
+  box-sizing: border-box;
+  animation: killIn 0.2s ease;
 }
 
 .killfeed .kill__row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  gap: 6px;
   min-height: 20px;
 }
 
 .killfeed .kill__killer {
-  color: var(--text);
-  font-weight: 600;
-  flex-shrink: 0;
-  max-width: 120px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-weight: 700;
   white-space: nowrap;
+  color: var(--text);
 }
 
-.killfeed .kill__weapon-wrap {
-  flex-shrink: 0;
-  width: 28px;
-  height: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+/* Цвета команд */
+.kill__name--ct     { color: var(--ct) !important; }
+.kill__name--t      { color: var(--t) !important; }
+.kill__name--ct-dim { color: rgba(59, 130, 246, 1) !important; }
+.kill__name--t-dim  { color: rgba(239, 68, 68, 1) !important; }
 
 .killfeed .kill .kill__weapon {
-  width: 24px;
-  height: 16px;
+  width: 56px;
+  height: 28px;
   object-fit: contain;
   opacity: 0.95;
+  flex-shrink: 0;
+}
+
+/* Headshot: PNG-иконка из CS2 */
+.killfeed .kill .kill__hs {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  opacity: 1;
+  flex-shrink: 0;
 }
 
 .killfeed .kill__victim {
-  color: var(--text-muted);
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  color: rgba(255, 255, 255, 1);
   white-space: nowrap;
 }
 
-.killfeed .kill__assist {
-  font-size: 11px;
-  color: var(--text-muted);
-  padding-left: 0;
+/* Пре-модификаторы (blind, wallbang, smoke, noscope) — PNG-иконки из CS2 */
+.killfeed .kill__mod {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  opacity: 0.9;
+  flex-shrink: 0;
 }
 
-.killfeed .kill__assist--flash { color: #fbbf24; }
-.killfeed .kill__assist--damage { color: #94a3b8; }
+.killfeed .kill__plus {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+
+.killfeed .kill__assister {
+  white-space: nowrap;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.killfeed .kill__assist-icon {
+  width: 13px;
+  height: 13px;
+  opacity: 0.85;
+  flex-shrink: 0;
+}
 
 @keyframes killIn {
-  from {
-    opacity: 0;
-    transform: translateX(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 
 /* ========== OBSERVED PLAYER (center bottom) ========== */
@@ -445,38 +596,199 @@ body {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   background: var(--bg-panel);
-  padding: 10px 24px;
+  padding: 12px 22px;
   border-radius: var(--radius-lg);
   border: 1px solid var(--border);
   z-index: 55;
+  min-width: 560px;
+  overflow: hidden;
 }
-
+.player__info__obs{
+  display: flex;
+  flex-direction: row;
+  gap: 35px;
+  min-width: 0;
+  align-items: center;  
+}
 .observed__avatar {
-  width: 48px;
-  height: 48px;
+  width: 70px;
+  height: 70px;
   border-radius: 50%;
   border: 2px solid var(--border);
   object-fit: cover;
   background: var(--bg-dark);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
 }
 
 .observed__info {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+
+.observed__info-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .observed__name {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text);
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.observed__kda {
-  font-family: var(--font-display);
-  font-size: 20px;
-  letter-spacing: 0.08em;
-  color: var(--accent);
+.observed__hp-wrap {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+  flex-shrink: 0;
 }
+.observed__hp {
+  font-family: var(--font-display);
+  font-size: 30px;
+  color: #22c55e;
+  line-height: 1;
+}
+.observed__hp-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+.observed__armor-icon {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+/* Оружие + патроны */
+.observed__weapon-ammo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 22px;
+}
+.obs-weapon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.obs-weapon__icon {
+  height: 36px;
+  width: 86px;
+  object-fit: contain;
+  filter: brightness(1.2);
+}
+.obs-weapon__ammo {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+}
+.obs-weapon__clip {
+  font-family: var(--font-display);
+  font-size: 30px;
+  color: var(--text);
+  line-height: 1;
+}
+.obs-weapon__sep {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 0 1px;
+}
+.obs-weapon__reserve {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* Гранаты в панели наблюдателя */
+.observed__grenades-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 20px;
+}
+.obs-grenade {
+  position: relative;
+  opacity: 0.35;
+  transition: opacity 0.15s;
+}
+.obs-grenade.active { opacity: 1; }
+.obs-grenade img { width: 20px; height: 20px; object-fit: contain; }
+.obs-grenade__count {
+  position: absolute;
+  bottom: -2px; right: -2px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.75);
+  border-radius: 50%;
+  width: 12px; height: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* HP-бар наблюдателя */
+.observed__hpbar {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.18) 0%, rgba(59, 130, 246, 0.12) 100%);
+  transition: width 0.25s ease, background 0.3s ease;
+  z-index: 0;
+  pointer-events: none;
+}
+.observed--ct .observed__hpbar {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.2) 0%, rgba(59, 130, 246, 0.16) 100%);
+}
+.observed--t .observed__hpbar {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(249, 115, 22, 0.16) 100%);
+}
+
+/* K / A / D статистика */
+.observed__stats {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 16px;
+  position: relative;
+  z-index: 1;
+}
+.observed__stat {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.observed__stat-val {
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 1;
+  min-width: 30px;
+  text-align: right;
+}
+.observed__stat-lbl {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  width: 12px;
+}
+.observed__stat-k { color: #22c55e; }
+.observed__stat-a { color: #f59e0b; }
+.observed__stat-d { color: #ef4444; }

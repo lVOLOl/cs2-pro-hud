@@ -16,7 +16,10 @@
     <img id="ct_logo" class="team__logo" alt="">
     <span id="ct_score" class="team__score">0</span>
   </div>
-  <div id="round_timer" class="topbar__timer">1:55</div>
+  <div id="round_timer_wrap" class="topbar__timer">
+    <img id="topbar_bomb_icon" class="topbar__bomb-icon" src="assets/weapons/c4.svg" alt="">
+    <span id="round_timer">1:55</span>
+  </div>
   <div class="team team--t">
     <span id="t_score" class="team__score">0</span>
     <img id="t_logo" class="team__logo" alt="">
@@ -24,19 +27,47 @@
 </div>
 
 <div id="defuse_timer_wrap" class="defuse-timer" aria-hidden="true">
-  <span class="defuse-timer__label">DEFUSE</span>
-  <span id="defuse_timer" class="defuse-timer__value">0:00</span>
+  <div class="defuse-timer__header">
+    <img class="defuse-timer__icon" src="assets/weapons/defuser.svg" alt="">
+    <span class="defuse-timer__label">DEFUSING</span>
+    <span id="defuse_kit_badge" class="defuse-timer__kit" style="display:none">KIT</span>
+  </div>
+  <span id="defuse_timer" class="defuse-timer__value">0.00</span>
 </div>
 
 <div id="players_ct" class="players players--ct"></div>
 <div id="players_t" class="players players--t"></div>
 
 <div id="observed" class="observed">
-  <img id="observed_avatar" class="observed__avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'/%3E" alt="">
+  <div id="observed_hpbar" class="observed__hpbar" style="width:100%"></div>
+  <img id="observed_avatar" class="observed__avatar" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'/%3E" alt="">
   <div class="observed__info">
-    <span id="observed_name" class="observed__name">—</span>
-    <span id="observed_kda" class="observed__kda">0 | 0 | 0</span>
-    
+    <div class="observed__info-top">
+      <span id="observed_name" class="observed__name">—</span>
+    </div>
+    <div class="player__info__obs">
+      <div class="observed__hp-wrap">
+      <span id="observed_hp" class="observed__hp">—</span>
+      <span class="observed__hp-label">HP</span>
+    </div>
+    <div id="observed_weapon_ammo" class="observed__weapon-ammo"></div>
+    <img id="observed_armor_icon" class="observed__armor-icon" src="assets/weapons/kevlar.svg" alt="" style="opacity:0.2;filter:grayscale(1)">
+    </div>
+    <div id="observed_grenades" class="observed__grenades-row"></div>
+  </div>
+  <div class="observed__stats">
+    <div class="observed__stat">
+      <span id="obs_k" class="observed__stat-val observed__stat-k">0</span>
+      <span class="observed__stat-lbl">K</span>
+    </div>
+    <div class="observed__stat">
+      <span id="obs_a" class="observed__stat-val observed__stat-a">0</span>
+      <span class="observed__stat-lbl">A</span>
+    </div>
+    <div class="observed__stat">
+      <span id="obs_d" class="observed__stat-val observed__stat-d">0</span>
+      <span class="observed__stat-lbl">D</span>
+    </div>
   </div>
 </div>
 
@@ -47,10 +78,15 @@
 
 <div id="killfeed" class="killfeed"></div>
 
+<div id="minimap" class="minimap">
+  <canvas id="minimap_canvas" class="minimap__canvas" width="480" height="480"></canvas>
+</div>
+
 <script src="/socket.io/socket.io.js"></script>
 <script src="main.js"></script>
 <script src="players.js"></script>
 <script src="killfeed.js"></script>
+<script src="minimap.js"></script>
 
 </body>
 </html>

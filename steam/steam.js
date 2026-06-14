@@ -1,4 +1,4 @@
-const STEAM_KEY = process.env.STEAM_API_KEY || "64851CB8F78D638A8AA31A3857446546"
+const STEAM_KEY = process.env.STEAM_API_KEY || "STEAM_API_KEY_NOT_SET"
 
 async function getAvatar(steamid) {
   if (!steamid) return null
