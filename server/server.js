@@ -6,7 +6,8 @@ const { Server } = require("socket.io")
 const path = require("path")
 const { getAvatar } = require("../steam/steam.js")
 
-const CS2_OVERVIEWS = path.join(__dirname, "..", "hud", "assets", "overviews", "radar")
+const BASE_DIR = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, "..")
+const CS2_OVERVIEWS = path.join(BASE_DIR, "hud", "assets", "overviews", "radar")
 
 function parseKV(text) {
   const result = {}
@@ -20,7 +21,16 @@ function parseKV(text) {
 
 const app = express()
 const server = http.createServer(app)
-const io = new Server(server)
+const io = new Server(server, {
+  cors: { origin: "*" },
+  transports: ["websocket", "polling"],
+})
+
+io.on("connection", socket => {
+  if (Object.keys(gameState).length > 0) {
+    socket.emit("state", gameState)
+  }
+})
 
 let gameState = {}
 let prevAllplayers = {}
@@ -367,14 +377,8 @@ app.get("/avatar/:steamid", async (req, res) => {
   }
 })
 
-app.use(express.static(path.join(__dirname, "../hud")))
+app.use(express.static(path.join(BASE_DIR, "hud")))
 
 server.listen(3000, () => {
   console.log("HUD server running on http://localhost:3000")
-  const { exec } = require("child_process")
-  const url = "http://localhost:3000"
-  const cmd = process.platform === "win32" ? `start ${url}`
-            : process.platform === "darwin" ? `open ${url}`
-            : `xdg-open ${url}`
-  exec(cmd)
 })

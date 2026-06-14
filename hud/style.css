@@ -8,8 +8,8 @@
   --accent-dim: rgba(245, 158, 11, 1);
   --ct: #3b82f6;
   --ct-dim: rgba(59, 130, 246, 0.7);
-  --t: #ef4444;
-  --t-dim: rgba(239, 68, 68, 0.7);
+  --t: #fecd06;
+  --t-dim: rgba(254, 204, 6, 0.7);
   --text: #f1f5f9;
   --text-muted: #94a3b8;
   --border: rgba(255, 255, 255, 0.08);
@@ -227,8 +227,8 @@ body {
   background: var(--bg-card);
   padding: 7px 10px 7px 6px;
   border-radius: var(--radius);
-  width: 280px;
-  height: 82px;
+  width: 350px;
+  height: 100px;
   border: 1px solid var(--border);
   position: relative;
   overflow: hidden;
@@ -246,8 +246,15 @@ body {
 }
 .player--ct .player__accent { background: linear-gradient(180deg, var(--ct) 0%, transparent 100%); }
 .player--t  .player__accent { background: linear-gradient(180deg, var(--t)  0%, transparent 100%); }
-
-.player__avatar-wrap {
+.player__avatar_money-wrap{
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.player__avatar_money-wrap .player__avatar-wrap {
   flex-shrink: 0;
   width: 44px;
   height: 44px;
@@ -275,9 +282,29 @@ body {
   justify-content: space-between;
   gap: 6px;
 }
-
+.player__HP{
+  display: flex;
+  flex-direction: row;
+  align-items: center; margin-left: 10px;
+  gap: 5px;
+}
+.player--ct .player__kd{
+  flex-direction: row-reverse;
+}
+.player--ct .player__kd .player__kd__HP{
+  margin-right: 10px;
+}
+.player__money{
+  /* margin-left: 10px; */
+  font-weight: bold;
+  margin-top: 4px;
+}
+.player__money{
+  color: #22c55e;
+  z-index: 10;
+}
 .player__name {
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -425,7 +452,7 @@ body {
   opacity: 0.5;
 }
 .player--t .player__hpbar {
-  background: linear-gradient(90deg, #ef4444 0%, #f97316 100%);
+  background: linear-gradient(90deg, #fecd06 0%, #f97316 100%);
   opacity: 0.5;
 }
 
@@ -754,7 +781,8 @@ body {
   background: linear-gradient(90deg, rgba(34, 197, 94, 0.2) 0%, rgba(59, 130, 246, 0.16) 100%);
 }
 .observed--t .observed__hpbar {
-  background: linear-gradient(90deg, rgba(239, 68, 68, 0.2) 0%, rgba(249, 115, 22, 0.16) 100%);
+  background: linear-gradient(90deg, rgba(254, 205, 6, 0.2) 0%, rgba(249, 115, 22, 0.16) 100%);
+  
 }
 
 /* K / A / D статистика */
@@ -783,10 +811,11 @@ body {
   text-align: right;
 }
 .observed__stat-lbl {
-  font-size: 11px;
+  font-size: 16px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.08em;
+  /* line-height: 20; */
   width: 12px;
 }
 .observed__stat-k { color: #22c55e; }

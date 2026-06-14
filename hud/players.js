@@ -111,6 +111,7 @@ function updatePlayers(data) {
     const matchStats = p.match_stats || {}
     const kills = matchStats.kills ?? 0
     const deaths = matchStats.deaths ?? 0
+    const money = (state.money ?? state.Money) ?? 0
 
     let team = String(p.team || "").toUpperCase()
     if (team === "COUNTER-TERRORIST" || team === "0") team = "CT"
@@ -165,14 +166,22 @@ function updatePlayers(data) {
 
     const html = `<div class="player ${teamClass}${deadClass}">
       <div class="player__accent"></div>
-      <div class="player__avatar-wrap">
-        <img class="player__avatar" src="${getSteamAvatar(p.steamid)}" alt="">
+      <div class="player__avatar_money-wrap">
+        <div class="player__avatar-wrap">
+          <img class="player__avatar" src="${getSteamAvatar(p.steamid)}" alt="">
+        </div>
+        <div class="player__money">$${money}</div>
       </div>
       <div class="player__body">
         <div class="player__top">
           <span class="player__name">${truncateName(p.name || "?").replace(/</g, "&lt;")}</span>
           <div class="player__kd">
-            <span class="player__kd-k">${kills}</span><span class="player__kd-sep">/</span><span class="player__kd-d">${deaths}</span>
+            <div class="player__kd__KAD">
+              <span class="player__kd-k">${kills}</span><span class="player__kd-sep">/</span><span class="player__kd-d">${deaths}</span>
+            </div>
+            <div class="player__kd__HP">
+              <span class="player__HP"><img src="assets/weapons/hp.svg" alt="" srcset="">${health}</span>
+            </div>
           </div>
         </div>
         <div class="player__loadout">
@@ -186,6 +195,7 @@ function updatePlayers(data) {
         </div>
       </div>
       <div class="player__hpbar" style="width:${health}%"></div>
+      
     </div>`
 
     if (team === "CT") ctHTML += html

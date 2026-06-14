@@ -221,7 +221,8 @@ function drawMinimap(dt = 0.016) {
     const pxl = worldToCanvas(p.rx, p.ry, floor)
     if (!pxl) continue
 
-    const color = p.isCT ? "#3b82f6" : "#ef4444"
+    // const color = p.isCT ? "#3b82f6" : "#ef4444"
+    const color = p.isCT ? "#3b82f6" : "#fecd06"
     const r     = p.alive ? 11 : 7
 
     // Direction arrow
@@ -230,7 +231,7 @@ function drawMinimap(dt = 0.016) {
       ctx.beginPath()
       ctx.moveTo(pxl.x, pxl.y)
       ctx.lineTo(pxl.x + Math.cos(p.angle) * len, pxl.y + Math.sin(p.angle) * len)
-      ctx.strokeStyle = p.isCT ? "rgba(96,165,250,0.85)" : "rgba(248,113,113,0.85)"
+      ctx.strokeStyle = p.isCT ? "rgba(96,165,250,0.85)" : "rgba(254, 204, 6, 0.85)"
       ctx.lineWidth = 2
       ctx.stroke()
     }

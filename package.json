@@ -10,6 +10,15 @@
     "start": "node server/server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "pkg": {
+    "assets": [
+      "hud/**/*",
+      "steam/**/*",
+      "cfg/**/*",
+      "node_modules/socket.io/client-dist/**/*"
+    ],
+    "targets": ["node18-win-x64"]
+  },
   "dependencies": {
     "body-parser": "^2.2.2",
     "express": "^5.2.1",

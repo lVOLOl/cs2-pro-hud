@@ -1,4 +1,4 @@
-const socket = io()
+const socket = io({ transports: ["websocket", "polling"] })
 
 let lastProcessedKillCount = 0
 let lastRecentKillsLength = 0
