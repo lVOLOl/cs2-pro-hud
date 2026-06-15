@@ -112,6 +112,7 @@ function updatePlayers(data) {
     const kills = matchStats.kills ?? 0
     const deaths = matchStats.deaths ?? 0
     const money = (state.money ?? state.Money) ?? 0
+    const roundKills = state.round_kills ?? 0
 
     let team = String(p.team || "").toUpperCase()
     if (team === "COUNTER-TERRORIST" || team === "0") team = "CT"
@@ -195,7 +196,7 @@ function updatePlayers(data) {
         </div>
       </div>
       <div class="player__hpbar" style="width:${health}%"></div>
-      
+      ${roundKills > 0 ? `<div class="player__round-kills">${"<img src='assets/weapons/kill-star.png' class='player__kill-star' alt=''>".repeat(roundKills)}</div>` : ""}
     </div>`
 
     if (team === "CT") ctHTML += html

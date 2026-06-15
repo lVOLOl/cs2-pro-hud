@@ -298,6 +298,14 @@ function updateObservedPlayer(data) {
   if (obsAEl) obsAEl.textContent = stats.assists ?? 0
   if (obsDEl) obsDEl.textContent = stats.deaths ?? 0
 
+  const obsRoundKillsEl = document.getElementById("observed_round_kills")
+  if (obsRoundKillsEl) {
+    const rk = state.round_kills ?? 0
+    obsRoundKillsEl.innerHTML = rk > 0
+      ? "<img src='assets/weapons/kill-star.png' class='player__kill-star' alt=''>".repeat(rk)
+      : ""
+  }
+
   // Используем data.player.weapons для ammo (в allplayers ammo_clip не передаётся)
   const rawWeapons = (data.player && data.player.weapons) || p.weapons || {}
   let activeWeapon = null

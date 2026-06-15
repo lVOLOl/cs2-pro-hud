@@ -821,3 +821,33 @@ body {
 .observed__stat-k { color: #22c55e; }
 .observed__stat-a { color: #f59e0b; }
 .observed__stat-d { color: #ef4444; }
+
+/* ── Round kill stars ── */
+.player__round-kills {
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  display: flex;
+  gap: 2px;
+  align-items: center;
+  z-index: 10;
+}
+.player__kill-star {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+}
+.player--t .player__round-kills {
+  right: unset;
+  left: 4px;
+}
+.observed__round-kills {
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  margin-top: 4px;
+}
+.observed__round-kills .player__kill-star {
+  width: 18px;
+  height: 18px;
+}
