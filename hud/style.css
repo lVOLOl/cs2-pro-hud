@@ -454,6 +454,8 @@ body {
 .player--t .player__hpbar {
   background: linear-gradient(90deg, #fecd06 0%, #f97316 100%);
   opacity: 0.5;
+  right: 0 !important; 
+  left: unset;
 }
 
 /* ========== MINIMAP ========== */
