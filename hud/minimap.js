@@ -39,11 +39,13 @@ const CSS_W_MULTI  = 350
 const CANVAS_W = CSS_W_SINGLE * 2   // 700px canvas buffer for single-floor
 
 let _minimapMapName = null
-let _minimapInfo    = null   // resolved MAP_INFO entry
-let _minimapImg     = null   // combined / main image
+let _minimapInfo    = null
+let _minimapImg     = null
 let _isMultiFloor   = false
 
 const _players = {}
+let _bomb          = null   // { wx, wy, wz, state }
+let _prevRoundPhase = null
 let _rafId         = null
 let _lastFrameTime = null
 const SMOOTH_SPEED = 6
@@ -215,49 +217,77 @@ function drawMinimap(dt = 0.016) {
 
   if (!_minimapInfo) return
 
+  // ── Death markers (X) ─────────────────────────────────────────────
   for (const id in _players) {
     const p = _players[id]
+    if (!p.deathPos) continue
+    const pxl = worldToCanvas(p.deathPos.wx, p.deathPos.wy, p.deathPos.floor)
+    if (!pxl) continue
+    const s = 7
+    ctx.strokeStyle = p.isCT ? "rgba(96,165,250,0.75)" : "rgba(254,204,6,0.75)"
+    ctx.lineWidth = 2.5
+    ctx.beginPath()
+    ctx.moveTo(pxl.x - s, pxl.y - s); ctx.lineTo(pxl.x + s, pxl.y + s)
+    ctx.moveTo(pxl.x + s, pxl.y - s); ctx.lineTo(pxl.x - s, pxl.y + s)
+    ctx.stroke()
+  }
+
+  // ── Bomb ─────────────────────────────────────────────────────────
+  if (_bomb) {
+    const bfloor = _isMultiFloor ? getFloor(_bomb.wz) : null
+    const bpxl = worldToCanvas(_bomb.wx, _bomb.wy, bfloor)
+    if (bpxl) {
+      const pulse = _bomb.state === "planted" ? 0.6 + 0.4 * Math.sin(Date.now() / 200) : 1
+      ctx.globalAlpha = pulse
+      ctx.beginPath()
+      ctx.arc(bpxl.x, bpxl.y, 9, 0, Math.PI * 2)
+      ctx.fillStyle = _bomb.state === "planted" ? "#ef4444" : "#ef4444"
+      ctx.fill()
+      ctx.strokeStyle = "#fff"
+      ctx.lineWidth = 1.5
+      ctx.stroke()
+      ctx.font = "bold 10px sans-serif"
+      ctx.textAlign = "center"
+      ctx.textBaseline = "middle"
+      ctx.fillStyle = "#fff"
+      ctx.fillText("C4", bpxl.x, bpxl.y)
+      ctx.globalAlpha = 1
+    }
+  }
+
+  // ── Players ───────────────────────────────────────────────────────
+  for (const id in _players) {
+    const p = _players[id]
+    if (!p.alive) continue
     const floor = p.floor || null
     const pxl = worldToCanvas(p.rx, p.ry, floor)
     if (!pxl) continue
 
-    // const color = p.isCT ? "#3b82f6" : "#ef4444"
     const color = p.isCT ? "#3b82f6" : "#fecd06"
-    const r     = p.alive ? 11 : 7
+    const r = 11
 
     // Direction arrow
-    if (p.alive) {
-      const len = r + 9
-      ctx.beginPath()
-      ctx.moveTo(pxl.x, pxl.y)
-      ctx.lineTo(pxl.x + Math.cos(p.angle) * len, pxl.y + Math.sin(p.angle) * len)
-      ctx.strokeStyle = p.isCT ? "rgba(96,165,250,0.85)" : "rgba(254, 204, 6, 0.85)"
-      ctx.lineWidth = 2
-      ctx.stroke()
-    }
+    const len = r + 9
+    ctx.beginPath()
+    ctx.moveTo(pxl.x, pxl.y)
+    ctx.lineTo(pxl.x + Math.cos(p.angle) * len, pxl.y + Math.sin(p.angle) * len)
+    ctx.strokeStyle = p.isCT ? "rgba(96,165,250,0.85)" : "rgba(254,204,6,0.85)"
+    ctx.lineWidth = 2
+    ctx.stroke()
 
-    // Circle
     ctx.beginPath()
     ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
-    if (p.alive) {
-      ctx.fillStyle = color
-      ctx.fill()
-      ctx.strokeStyle = "rgba(255,255,255,0.85)"
-      ctx.lineWidth = 1.5
-      ctx.stroke()
-    } else {
-      ctx.fillStyle = "rgba(0,0,0,0.5)"
-      ctx.fill()
-      ctx.strokeStyle = p.isCT ? "rgba(59,130,246,0.5)" : "rgba(239,68,68,0.5)"
-      ctx.lineWidth = 1.5
-      ctx.stroke()
-    }
+    ctx.fillStyle = color
+    ctx.fill()
+    ctx.strokeStyle = "rgba(255,255,255,0.85)"
+    ctx.lineWidth = 1.5
+    ctx.stroke()
 
     if (p.num != null) {
       ctx.font = `bold ${r * 1.5}px sans-serif`
       ctx.textAlign    = "center"
       ctx.textBaseline = "middle"
-      ctx.fillStyle = p.alive ? "#fff" : (p.isCT ? "rgba(96,165,250,0.6)" : "rgba(248,113,113,0.6)")
+      ctx.fillStyle = "#fff"
       ctx.fillText(String(p.num), pxl.x, pxl.y)
     }
   }
@@ -268,6 +298,22 @@ function drawMinimap(dt = 0.016) {
 function updateMinimap(data) {
   const mapName = data.map?.name
   if (mapName) loadMinimapAssets(mapName)
+
+  // Clear death positions on new round (freezetime)
+  const roundPhase = data.map?.phase
+  if (roundPhase === "freezetime" && _prevRoundPhase !== "freezetime") {
+    for (const id in _players) _players[id].deathPos = null
+  }
+  _prevRoundPhase = roundPhase
+
+  // Bomb position
+  const bomb = data.bomb
+  if (bomb && bomb.position && (bomb.state === "dropped" || bomb.state === "planted")) {
+    const bp = parseVec(bomb.position)
+    if (bp) _bomb = { wx: bp.x, wy: bp.y, wz: bp.z, state: bomb.state }
+  } else if (!bomb || bomb.state === "defused" || bomb.state === "exploded" || bomb.state === "carried") {
+    _bomb = null
+  }
 
   const allplayers = data.allplayers || {}
 
@@ -283,12 +329,19 @@ function updateMinimap(data) {
     const alive = (p.state?.health ?? 0) > 0
     const isCT  = (p.team || "").toUpperCase() === "CT"
     const slot  = p.observer_slot ?? null
-    const num   = slot === 0 ? 10 : slot
+    // slot is 0-based: slot 0 = key 1, slot 9 = key 0
+    const num   = slot != null ? (slot + 1) % 10 : null
     const floor = _isMultiFloor ? getFloor(pos.z) : null
 
     if (!_players[id]) {
-      _players[id] = { rx: pos.x, ry: pos.y, tx: pos.x, ty: pos.y, angle, targetAngle: angle, alive, isCT, num, floor }
+      _players[id] = { rx: pos.x, ry: pos.y, tx: pos.x, ty: pos.y, angle, targetAngle: angle, alive, isCT, num, floor, deathPos: null }
     } else {
+      const wasAlive = _players[id].alive
+      // Save death position when player just died
+      if (wasAlive && !alive) {
+        _players[id].deathPos = { wx: _players[id].rx, wy: _players[id].ry, floor: _players[id].floor }
+      }
+      if (alive) _players[id].deathPos = null
       Object.assign(_players[id], { tx: pos.x, ty: pos.y, targetAngle: angle, alive, isCT, num, floor })
     }
   }

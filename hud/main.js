@@ -68,7 +68,7 @@ function normalizeGameState(data) {
       team_t: t ? { score: t.score ?? map.score_t, name: t.name } : { score: 0, name: "" },
     } : null,
     allplayers,
-    phase_countdowns: Object.keys(phase).length ? { phase_ends_in: phase.phase_ends_in ?? phase.Phase_ends_in } : null,
+    phase_countdowns: Object.keys(phase).length ? { phase: phase.phase ?? phase.Phase, phase_ends_in: phase.phase_ends_in ?? phase.Phase_ends_in } : null,
     round: Object.keys(round).length ? { phase: pick(round, "phase", "Phase") } : null,
     bomb: Object.keys(bomb).length ? { countdown: bomb.countdown ?? bomb.Countdown, position: bomb.position ?? bomb.Position, state: bomb.state ?? bomb.State, defuse_countdown: bomb.defuse_countdown ?? bomb.defuseCountdown } : null,
     recent_kills: data.recent_kills,
@@ -89,6 +89,7 @@ socket.on("state", (data) => {
   updateScore(lastState)
   updateRound(lastState)
   updateBomb(lastState)
+  updateTimerRing(lastState)
   updatePlayers(lastState)
   updateObservedPlayer(lastState)
   updateKillfeed(lastState)
@@ -104,6 +105,20 @@ function updateScore(data) {
   const tEl = document.getElementById("t_score")
   if (ctEl && ct) ctEl.innerText = ct.score != null ? ct.score : 0
   if (tEl && t) tEl.innerText = t.score != null ? t.score : 0
+
+  const all = data.allplayers || {}
+  let ctAlive = 0, tAlive = 0
+  for (const id in all) {
+    const p = all[id]
+    const team = (p.team || "").toUpperCase()
+    const alive = (p.state?.health ?? 0) > 0
+    if (team === "CT" && alive) ctAlive++
+    else if (team === "T" && alive) tAlive++
+  }
+  const ctAliveEl = document.getElementById("ct_alive")
+  const tAliveEl  = document.getElementById("t_alive")
+  if (ctAliveEl) ctAliveEl.textContent = ctAlive
+  if (tAliveEl)  tAliveEl.textContent  = tAlive
 }
 
 // Синхронизация таймера с игрой: храним последнее значение сервера и время его получения.
@@ -121,12 +136,29 @@ function formatTime(sec) {
   return m + ":" + String(s).padStart(2, "0")
 }
 
+function updatePause(data) {
+  const overlay = document.getElementById("pause_overlay")
+  const badge   = document.getElementById("pause_team_badge")
+  if (!overlay) return
+  const ph = data.phase_countdowns?.phase || ""
+  const isPause = ph === "timeout_ct" || ph === "timeout_t" || ph === "paused"
+  overlay.style.display = isPause ? "flex" : "none"
+  if (badge) {
+    if (ph === "timeout_ct") { badge.textContent = "CT"; badge.className = "pause-overlay__badge pause-overlay__badge--ct" }
+    else if (ph === "timeout_t") { badge.textContent = "T";  badge.className = "pause-overlay__badge pause-overlay__badge--t" }
+    else { badge.textContent = "PAUSE"; badge.className = "pause-overlay__badge" }
+  }
+}
+
 function updateRound(data) {
+  updatePause(data)
   const el = document.getElementById("round_timer")
   const wrap = document.getElementById("round_timer_wrap")
   if (!el) return
   const bomb = data.bomb
-  const bombLive = !!(bomb && (bomb.state === "planted" || bomb.state === "defusing"))
+  const isPlanted  = !!(bomb && bomb.state === "planted")
+  const isDefusing = !!(bomb && bomb.state === "defusing")
+  const bombLive   = isPlanted || isDefusing
   const phase = data.phase_countdowns
   let countdown = null
   if (bombLive && bomb.countdown != null) countdown = Number(bomb.countdown)
@@ -135,7 +167,10 @@ function updateRound(data) {
   if (countdown != null && !isNaN(countdown)) {
     timerSyncValue = countdown
     timerSyncAt = Date.now()
-    if (wrap) wrap.classList.toggle("topbar__timer--bomb", bombLive)
+    if (wrap) {
+      wrap.classList.toggle("topbar__timer--bomb",    isPlanted)
+      wrap.classList.toggle("topbar__timer--defuse",  isDefusing)
+    }
     el.innerText = formatTime(countdown)
     if (!timerTick) {
       timerTick = setInterval(() => {
@@ -152,7 +187,7 @@ function updateRound(data) {
   } else {
     timerSyncValue = null
     timerSyncAt = null
-    if (wrap) wrap.classList.remove("topbar__timer--bomb")
+    if (wrap) { wrap.classList.remove("topbar__timer--bomb"); wrap.classList.remove("topbar__timer--defuse") }
     el.innerText = "0:00"
   }
 }
@@ -215,6 +250,134 @@ function updateBomb(data) {
       if (defuseTick) { clearInterval(defuseTick); defuseTick = null }
     }
   }
+
+  // Defuser icon in topbar timer
+  const topDefuser = document.getElementById("topbar_defuser_icon")
+  if (topDefuser) topDefuser.style.display = (bomb.state === "defusing") ? "block" : "none"
+}
+
+// ── Timer progress ring ───────────────────────────────────────────────────────
+let _ringState     = null   // "bomb" | "defuse" | "pause"
+let _ringInitial   = null
+let _ringStartAt   = null   // Date.now() when ring state began (fallback timer)
+let _prevBombState = null
+let _prevIsPause   = false
+let _ringRafId     = null
+let _ringColor     = "#ef4444"
+// Pause sync (interpolated like bomb/defuse)
+let _pauseSyncValue = null
+let _pauseSyncAt    = null
+
+function buildRectPath(W, H, R) {
+  const hw = W / 2
+  return `M${hw},0 H${W-R} A${R},${R} 0 0 1 ${W},${R} V${H-R} A${R},${R} 0 0 1 ${W-R},${H} H${R} A${R},${R} 0 0 1 0,${H-R} V${R} A${R},${R} 0 0 1 ${R},0 H${hw}`
+}
+
+function rectPerimeter(W, H, R) {
+  return 2 * (W - 2*R) + 2 * (H - 2*R) + 2 * Math.PI * R
+}
+
+let _ringGeom = null  // cached { W, H, R, perim, d }
+
+function getRingGeom() {
+  const wrap = document.getElementById("round_timer_wrap")
+  const W = (wrap ? wrap.offsetWidth  : 220) + 10
+  const H = (wrap ? wrap.offsetHeight : 72)  + 10
+  if (_ringGeom && _ringGeom.W === W && _ringGeom.H === H) return _ringGeom
+  const R = 13
+  const perim = rectPerimeter(W, H, R)
+  const d = buildRectPath(W, H, R)
+  _ringGeom = { W, H, R, perim, d }
+  return _ringGeom
+}
+
+function applyRing(progress, color) {
+  const svg   = document.getElementById("timer_ring_svg")
+  const track = document.getElementById("timer_ring_track")
+  const bar   = document.getElementById("timer_ring_bar")
+  if (!svg || !track || !bar) return
+
+  if (progress <= 0) { svg.style.display = "none"; return }
+
+  const { W, H, perim, d } = getRingGeom()
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`)
+  track.setAttribute("d", d)
+  bar.setAttribute("d", d)
+  track.setAttribute("stroke-dasharray", `${perim} ${perim}`)
+  track.setAttribute("stroke-dashoffset", "0")
+  bar.setAttribute("stroke", color)
+  bar.setAttribute("stroke-dasharray", `${perim} ${perim}`)
+  bar.setAttribute("stroke-dashoffset", perim * (1 - Math.max(0, Math.min(1, progress))))
+  svg.style.display = "block"
+}
+
+function ringProgress() {
+  const now = Date.now()
+  if (_ringState === "bomb") {
+    const elapsed = timerSyncAt ? (now - timerSyncAt) / 1000 : 0
+    return Math.max(0, (timerSyncValue ?? 0) - elapsed) / _ringInitial
+  }
+  if (_ringState === "defuse") {
+    // If defuseSyncValue available (from GSI), interpolate from it
+    if (defuseSyncValue != null && defuseSyncAt != null) {
+      const elapsed = (now - defuseSyncAt) / 1000
+      return Math.max(0, defuseSyncValue - elapsed) / _ringInitial
+    }
+    // Fallback: count elapsed time since defuse started
+    const elapsed = _ringStartAt ? (now - _ringStartAt) / 1000 : 0
+    return Math.max(0, 1 - elapsed / _ringInitial)
+  }
+  if (_ringState === "pause") {
+    const elapsed = _pauseSyncAt ? (now - _pauseSyncAt) / 1000 : 0
+    return Math.max(0, (_pauseSyncValue ?? _ringInitial) - elapsed) / _ringInitial
+  }
+  return 0
+}
+
+function startRingRaf() {
+  if (_ringRafId) return
+  function tick() {
+    if (!_ringState) { _ringRafId = null; applyRing(0, "#fff"); return }
+    applyRing(ringProgress(), _ringColor)
+    _ringRafId = requestAnimationFrame(tick)
+  }
+  _ringRafId = requestAnimationFrame(tick)
+}
+
+function updateTimerRing(data) {
+  const bomb      = data.bomb
+  const bombState = bomb?.state
+  const ph        = data.phase_countdowns?.phase || ""
+  const isPause   = ph === "timeout_ct" || ph === "timeout_t" || ph === "paused"
+
+  if (bombState === "planted" && _prevBombState !== "planted") {
+    _ringState = "bomb"; _ringColor = "#ef4444"
+    _ringInitial = timerSyncValue || Number(bomb.countdown) || 40
+    _ringStartAt = Date.now()
+  } else if (bombState === "defusing" && _prevBombState !== "defusing") {
+    _ringState = "defuse"; _ringColor = "#22c55e"
+    _ringInitial = defuseSyncValue || Number(bomb.defuse_countdown ?? bomb.defuseCountdown) || 10
+    _ringStartAt = Date.now()
+  } else if (isPause && !_prevIsPause) {
+    _ringState = "pause"; _ringColor = "#94a3b8"
+    _ringInitial = Number(data.phase_countdowns?.phase_ends_in) || 30
+    _pauseSyncValue = _ringInitial; _pauseSyncAt = Date.now()
+    _ringStartAt = Date.now()
+  } else if (bombState !== "planted" && bombState !== "defusing" && !isPause) {
+    _ringState = null; _ringInitial = null; _ringStartAt = null
+    _pauseSyncValue = null; _pauseSyncAt = null
+  }
+
+  // Update pause sync on each GSI tick
+  if (_ringState === "pause") {
+    const raw = Number(data.phase_countdowns?.phase_ends_in)
+    if (!isNaN(raw) && raw > 0) { _pauseSyncValue = raw; _pauseSyncAt = Date.now() }
+  }
+
+  _prevBombState = bombState
+  _prevIsPause   = isPause
+
+  if (_ringState) startRingRaf()
 }
 
 function updateObservedPlayer(data) {
@@ -297,6 +460,13 @@ function updateObservedPlayer(data) {
   if (obsKEl) obsKEl.textContent = stats.kills ?? 0
   if (obsAEl) obsAEl.textContent = stats.assists ?? 0
   if (obsDEl) obsDEl.textContent = stats.deaths ?? 0
+
+  const obsDefuserEl = document.getElementById("observed_defuser")
+  if (obsDefuserEl) {
+    const team = (p.team || "").toUpperCase()
+    const hasKit = team === "CT" && !!(p.state?.defusekit)
+    obsDefuserEl.style.display = hasKit ? "block" : "none"
+  }
 
   const obsRoundKillsEl = document.getElementById("observed_round_kills")
   if (obsRoundKillsEl) {

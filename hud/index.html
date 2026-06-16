@@ -16,9 +16,21 @@
     <img id="ct_logo" class="team__logo" alt="">
     <span id="ct_score" class="team__score">0</span>
   </div>
-  <div id="round_timer_wrap" class="topbar__timer">
-    <img id="topbar_bomb_icon" class="topbar__bomb-icon" src="assets/weapons/c4.svg" alt="">
-    <span id="round_timer">1:55</span>
+  <div class="topbar__center">
+    <div id="round_timer_wrap" class="topbar__timer">
+      <svg id="timer_ring_svg" class="timer-ring-svg" style="display:none">
+        <path id="timer_ring_track" fill="none" stroke-width="3"/>
+        <path id="timer_ring_bar"   fill="none" stroke-width="3"/>
+      </svg>
+      <img id="topbar_bomb_icon" class="topbar__bomb-icon" src="assets/weapons/c4.svg" alt="">
+      <img id="topbar_defuser_icon" class="topbar__defuser-icon" src="assets/weapons/defuser.svg" alt="" style="display:none">
+      <span id="round_timer">1:55</span>
+    </div>
+    <div class="alive-counter">
+      <span id="ct_alive" class="alive-counter__num alive-counter__num--ct">5</span>
+      <span class="alive-counter__vs">vs</span>
+      <span id="t_alive" class="alive-counter__num alive-counter__num--t">5</span>
+    </div>
   </div>
   <div class="team team--t">
     <span id="t_score" class="team__score">0</span>
@@ -33,6 +45,11 @@
     <span id="defuse_kit_badge" class="defuse-timer__kit" style="display:none">KIT</span>
   </div>
   <span id="defuse_timer" class="defuse-timer__value">0.00</span>
+</div>
+
+<div id="pause_overlay" class="pause-overlay" style="display:none">
+  <div class="pause-overlay__badge" id="pause_team_badge">CT</div>
+  <div class="pause-overlay__label">TACTICAL PAUSE</div>
 </div>
 
 <div id="players_ct" class="players players--ct"></div>
@@ -52,9 +69,11 @@
     </div>
     <div id="observed_weapon_ammo" class="observed__weapon-ammo"></div>
     <img id="observed_armor_icon" class="observed__armor-icon" src="assets/weapons/kevlar.svg" alt="" style="opacity:0.2;filter:grayscale(1)">
+    <img id="observed_defuser" class="observed__defuser" src="assets/weapons/defuser.svg" alt="kit" style="display:none">
     </div>
     <div id="observed_grenades" class="observed__grenades-row"></div>
     <div id="observed_round_kills" class="observed__round-kills"></div>
+    
   </div>
   <div class="observed__stats">
     <div class="observed__stat">
