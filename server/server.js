@@ -377,6 +377,46 @@ app.get("/avatar/:steamid", async (req, res) => {
   }
 })
 
+// ── Webcam mappings (steamid64 → vdo.ninja URL) ──────────────────────────────
+const WEBCAMS_FILE = path.join(BASE_DIR, "webcams.json")
+
+function loadWebcams() {
+  try { return JSON.parse(fs.readFileSync(WEBCAMS_FILE, "utf8")) } catch { return {} }
+}
+function saveWebcams(data) {
+  fs.writeFileSync(WEBCAMS_FILE, JSON.stringify(data, null, 2))
+}
+
+app.get("/api/webcams", (req, res) => {
+  res.json(loadWebcams())
+})
+
+app.post("/api/webcams", express.json(), (req, res) => {
+  const { steamid, url } = req.body || {}
+  if (!steamid) return res.status(400).json({ error: "steamid required" })
+  const data = loadWebcams()
+  if (url) data[steamid] = url
+  else delete data[steamid]
+  saveWebcams(data)
+  res.json({ ok: true })
+})
+
+// Admin page — serve from hud/admin.html
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(BASE_DIR, "hud", "admin.html"))
+})
+
+// Expose current allplayers for admin page
+app.get("/api/players", (req, res) => {
+  const all = gameState.allplayers || {}
+  const players = Object.entries(all).map(([steamid, p]) => ({
+    steamid,
+    name: p.name || steamid,
+    team: p.team || "",
+  }))
+  res.json(players)
+})
+
 app.use(express.static(path.join(BASE_DIR, "hud")))
 
 server.listen(3000, () => {

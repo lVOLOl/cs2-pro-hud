@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Webcam Bindings — CS2 HUD Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0b0e;
+    --panel: rgba(18,20,26,0.95);
+    --border: rgba(255,255,255,0.08);
+    --ct: #3b82f6;
+    --t: #fecd06;
+    --text: #f1f5f9;
+    --muted: #64748b;
+    --green: #22c55e;
+    --red: #ef4444;
+    --radius: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Outfit", sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 32px 24px;
+  }
+  h1 {
+    font-family: "Bebas Neue", sans-serif;
+    font-size: 32px;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .subtitle {
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 32px;
+  }
+  .section-title {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  /* Player list */
+  .players-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 860px;
+  }
+
+  .player-row {
+    display: grid;
+    grid-template-columns: 40px 200px 180px 1fr auto;
+    align-items: center;
+    gap: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    transition: border-color 0.2s;
+  }
+  .player-row:hover { border-color: rgba(255,255,255,0.15); }
+  .player-row.saved { border-color: rgba(34,197,94,0.35); }
+
+  .player-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: rgba(255,255,255,0.05);
+  }
+  .player-info { min-width: 0; }
+  .player-name {
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .player-team {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+  }
+  .player-team--ct { color: var(--ct); }
+  .player-team--t  { color: var(--t); }
+  .player-steamid {
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .url-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: "Outfit", sans-serif;
+    font-size: 13px;
+    padding: 6px 10px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .url-input:focus { border-color: rgba(255,255,255,0.25); }
+  .url-input.has-value { border-color: rgba(34,197,94,0.4); }
+
+  .btn-save {
+    background: rgba(34,197,94,0.15);
+    border: 1px solid rgba(34,197,94,0.3);
+    color: var(--green);
+    font-family: "Outfit", sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.2s;
+  }
+  .btn-save:hover { background: rgba(34,197,94,0.25); }
+  .btn-save.saving { opacity: 0.5; pointer-events: none; }
+  .btn-save.ok { background: rgba(34,197,94,0.3); }
+
+  .btn-clear {
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.2);
+    color: var(--red);
+    font-family: "Outfit", sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-left: 6px;
+    transition: background 0.2s;
+  }
+  .btn-clear:hover { background: rgba(239,68,68,0.2); }
+
+  /* Manual add */
+  .manual-section {
+    margin-top: 32px;
+    max-width: 860px;
+  }
+  .manual-row {
+    display: grid;
+    grid-template-columns: 200px 1fr auto;
+    gap: 12px;
+    align-items: center;
+  }
+  .text-input {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: "Outfit", sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    width: 100%;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  .text-input:focus { border-color: rgba(255,255,255,0.25); }
+  .text-input::placeholder { color: var(--muted); }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 13px;
+    padding: 24px 0;
+  }
+
+  .status-bar {
+    position: fixed;
+    bottom: 20px;
+    right: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .status-bar.visible { opacity: 1; }
+  .status-bar.ok { color: var(--green); border-color: rgba(34,197,94,0.3); }
+</style>
+</head>
+<body>
+
+<h1>Webcam Bindings</h1>
+<p class="subtitle">Привязка SteamID64 → ссылка на вебку (vdo.ninja или другой источник)</p>
+
+<div class="section-title">Игроки в текущей игре</div>
+<div class="players-grid" id="players_grid">
+  <div class="empty-state" id="empty_state">Ожидание игроков от CS2... Убедитесь что матч запущен.</div>
+</div>
+
+<div class="manual-section">
+  <div class="section-title">Добавить вручную</div>
+  <div class="manual-row">
+    <input class="text-input" id="manual_steamid" placeholder="SteamID64 (76561...)">
+    <input class="text-input" id="manual_url" placeholder="https://vdo.ninja/?view=...">
+    <button class="btn-save" onclick="saveManual()">Добавить</button>
+  </div>
+</div>
+
+<div class="status-bar" id="status_bar"></div>
+
+<script>
+const ORIGIN = window.location.origin
+
+let webcams = {}
+let players = []
+let statusTimeout = null
+
+function showStatus(msg, type = "ok") {
+  const el = document.getElementById("status_bar")
+  el.textContent = msg
+  el.className = "status-bar visible " + type
+  clearTimeout(statusTimeout)
+  statusTimeout = setTimeout(() => el.classList.remove("visible"), 2500)
+}
+
+async function loadWebcams() {
+  const res = await fetch("/api/webcams")
+  webcams = await res.json()
+}
+
+async function loadPlayers() {
+  const res = await fetch("/api/players")
+  players = await res.json()
+  renderPlayers()
+}
+
+function renderPlayers() {
+  const grid = document.getElementById("players_grid")
+  const empty = document.getElementById("empty_state")
+
+  if (players.length === 0) {
+    empty.style.display = "block"
+    Array.from(grid.querySelectorAll(".player-row")).forEach(r => r.remove())
+    return
+  }
+  empty.style.display = "none"
+
+  // Remove rows for players no longer present
+  Array.from(grid.querySelectorAll(".player-row")).forEach(row => {
+    if (!players.find(p => p.steamid === row.dataset.steamid)) row.remove()
+  })
+
+  for (const p of players) {
+    let row = grid.querySelector(`[data-steamid="${p.steamid}"]`)
+    if (!row) {
+      row = createRow(p)
+      grid.appendChild(row)
+    }
+    // Update URL input if not focused
+    const input = row.querySelector(".url-input")
+    if (document.activeElement !== input) {
+      input.value = webcams[p.steamid] || ""
+      input.classList.toggle("has-value", !!webcams[p.steamid])
+    }
+  }
+}
+
+function createRow(p) {
+  const row = document.createElement("div")
+  row.className = "player-row" + (webcams[p.steamid] ? " saved" : "")
+  row.dataset.steamid = p.steamid
+
+  const team = (p.team || "").toUpperCase()
+  const teamClass = team === "CT" ? "player-team--ct" : team === "T" ? "player-team--t" : ""
+
+  row.innerHTML = `
+    <img class="player-avatar" src="${ORIGIN}/avatar/${encodeURIComponent(p.steamid)}"
+         onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\\'http://www.w3.org/2000/svg\\' width=\\'36\\' height=\\'36\\'/%3E'">
+    <div class="player-info">
+      <div class="player-name">${escHtml(p.name)}</div>
+      <div class="player-team ${teamClass}">${team || "—"}</div>
+    </div>
+    <div class="player-steamid">${p.steamid}</div>
+    <input class="url-input ${webcams[p.steamid] ? 'has-value' : ''}"
+           placeholder="https://vdo.ninja/?view=..."
+           value="${escHtml(webcams[p.steamid] || '')}">
+    <div style="display:flex">
+      <button class="btn-save" onclick="saveRow(this)">Сохранить</button>
+      <button class="btn-clear" onclick="clearRow(this)" title="Очистить">✕</button>
+    </div>
+  `
+  return row
+}
+
+async function saveRow(btn) {
+  const row = btn.closest(".player-row")
+  const steamid = row.dataset.steamid
+  const url = row.querySelector(".url-input").value.trim()
+  btn.classList.add("saving")
+  await fetch("/api/webcams", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ steamid, url })
+  })
+  webcams[steamid] = url
+  row.classList.toggle("saved", !!url)
+  row.querySelector(".url-input").classList.toggle("has-value", !!url)
+  btn.classList.remove("saving")
+  btn.classList.add("ok")
+  setTimeout(() => btn.classList.remove("ok"), 1200)
+  showStatus(`Сохранено: ${steamid}`)
+}
+
+async function clearRow(btn) {
+  const row = btn.closest(".player-row")
+  const steamid = row.dataset.steamid
+  row.querySelector(".url-input").value = ""
+  await fetch("/api/webcams", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ steamid, url: "" })
+  })
+  delete webcams[steamid]
+  row.classList.remove("saved")
+  row.querySelector(".url-input").classList.remove("has-value")
+  showStatus(`Очищено: ${steamid}`)
+}
+
+async function saveManual() {
+  const steamid = document.getElementById("manual_steamid").value.trim()
+  const url = document.getElementById("manual_url").value.trim()
+  if (!steamid) { showStatus("Введите SteamID64", "error"); return }
+  await fetch("/api/webcams", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ steamid, url })
+  })
+  webcams[steamid] = url
+  document.getElementById("manual_steamid").value = ""
+  document.getElementById("manual_url").value = ""
+  showStatus("Добавлено: " + steamid)
+}
+
+function escHtml(str) {
+  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
+}
+
+// Poll players every 3s
+async function init() {
+  await loadWebcams()
+  await loadPlayers()
+  setInterval(async () => {
+    await loadWebcams()
+    await loadPlayers()
+  }, 3000)
+}
+
+init()
+</script>
+</body>
+</html>

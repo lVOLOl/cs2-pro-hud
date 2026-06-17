@@ -1,62 +1,174 @@
 # CS2 Pro HUD
 
-Кастомный HUD для трансляций турниров по Counter-Strike 2. Получает данные из игры через Game State Integration (GSI) и отображает счёт, таймер раунда, игроков, киллфид (кто кого убил, оружие, ассисты флешем/уроном).
+Профессиональный broadcast-оверлей для CS2 в стиле ESL. Работает через CS2 Game State Integration (GSI) — никаких читов, только официальный API.
 
-## Запуск
+---
 
-1. Установить зависимости: `npm install`
-2. Запустить сервер: `node server/server.js`
-3. Открыть в браузере: http://localhost:3000
-4. В OBS добавить источник «Браузер» с URL http://localhost:3000 (фон прозрачный).
+## Возможности
 
-## Подключение CS2 (Game State Integration)
+### Топбар
+- Счёт CT / T с логотипами команд (через Steam API)
+- Таймер раунда с автоматическим переключением режимов:
+  - Стандартный обратный отсчёт
+  - Красный + иконка C4 + анимация пульсации — когда бомба заложена
+  - Зелёный + иконка дефьюзера — когда бомба разминируется
+- SVG-кольцо прогресса вокруг таймера (60 fps, RAF), убывает до нуля при бомбе / дефьюзе / паузе
+- Счётчик живых игроков `X vs X` под таймером
 
-Чтобы игра отправляла состояние на HUD:
+### Карточки игроков (боковые панели)
+- 5 игроков CT слева, 5 T справа
+- Аватарки из Steam API
+- HP-бар, броня (шлем / кевлар), деньги, observer-слот
+- Активное оружие с SVG-иконкой
+- Звёзды убийств в раунде (по одной за каждый килл)
 
-1. Найти папку конфигов CS2:
-   - **Windows:** `Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg\`
-   - Для CS2 путь может быть: `...\Counter-Strike 2\game\csgo\cfg\`
-2. Скопировать файл `cfg/gamestate_integration_prohud.vdf` в эту папку.
-3. В файле при необходимости изменить URL: заменить `http://localhost:3000/` на адрес твоего сервера (для трансляции с одной машины оставь localhost).
-4. Перезапустить CS2 или сменить карту.
+### Карточка наблюдаемого игрока (центр, снизу)
+- Полное имя, команда, HP
+- Активное оружие + боезапас (анимация убывания патронов)
+- Броня с иконкой (кевлар / шлем + кевлар)
+- Иконка дефьюзер-кита для КТ
+- Гранаты в инвентаре
+- Звёзды убийств в раунде
+- K / A / D за матч
+- **Webcam-вставка** — если игроку назначен URL вебки (VDO.ninja или любой другой iframe-совместимый источник), слева от инфографики показывается живое видео. Переключение между игроками — мгновенное (все iframe'ы предзагружены в фоне)
 
-Игра будет отправлять POST-запросы с JSON-состоянием на указанный URL. Сервер раздаёт это состояние всем открытым клиентам по WebSocket (Socket.IO).
+### Миникарта
+- Поддержка всех соревновательных карт: Dust2, Mirage, Inferno, Overpass, Vertigo, Ancient, Anubis
+- de_nuke с двумя этажами (верхний / нижний) на основе Z-координаты
+- Плавное движение точек игроков (lerp, 60 fps)
+- Стрелка направления взгляда
+- Номера observer-слотов (1–0)
+- Маркер бомбы (пульсирует когда заложена)
+- Крестики смерти в цвете команды, сбрасываются при начале нового раунда
 
-## Ассеты
+### Оверлеи
+- **TACTICAL PAUSE** — всплывает по центру при тайм-ауте, показывает команду (CT / T)
+- **DEFUSING** — отдельная панель с зелёным таймером разминирования и бейджем KIT
+- **Kill Feed** — лента убийств с иконками оружий
 
-Положи в папку `hud/assets/`:
+### Страница администратора
+`http://localhost:3000/admin`
 
-- **bomb.png** — иконка бомбы.
-- **weapons/** — иконки оружий (имя файла = имя оружия без префикса `weapon_`), например: `ak47.png`, `awp.png`, `knife.png`, `deagle.png`.
-- **teams/** — логотипы команд (имя файла = название команды с подчёркиваниями вместо пробелов), например: `Team_Vitality.png`, `Natus_Vincere.png`. Если файла нет, можно задать маппинг в коде (`teamLogoMap` в main.js).
+- Привязка SteamID64 → URL вебки (VDO.ninja и любые iframe-совместимые источники)
+- Автоматически отображает игроков из текущей игры (обновляется каждые 3 с)
+- Поле ввода URL для каждого игрока, кнопки Сохранить / Очистить
+- Ручное добавление по SteamID64 (для игроков вне матча)
+- Маппинги хранятся в `webcams.json` рядом с исполняемым файлом
 
-## Переменные окружения
+---
 
-- **STEAM_API_KEY** — ключ Steam Web API для загрузки аватарок игроков. Без ключа используется встроенный (лимиты могут быть жёстче). Получить ключ: https://steamcommunity.com/dev/apikey
+## Установка и запуск
+
+### Вариант 1 — Node.js
+
+**Требования:** Node.js 18+
+
+```bash
+npm install
+npm start
+```
+
+Сервер запустится на `http://localhost:3000`.
+
+### Вариант 2 — Standalone .exe (без Node.js на целевой машине)
+
+```bash
+npm install -g pkg
+pkg server/server.js --targets node18-win-x64 --out-path dist/
+```
+
+Рядом с `server.exe` должна лежать папка `hud/` со всеми ассетами, `cfg/` и `webcams.json` (создаётся автоматически).
+
+---
+
+## Настройка
+
+### 1. Steam API Key (аватарки)
+
+Задать переменную окружения перед запуском:
+
+```
+STEAM_API_KEY=ВАШ_КЛЮЧ
+```
+
+Ключ получить на [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
+
+### 2. Game State Integration
+
+Скопировать `cfg/gamestate_integration_prohud.vdf` в папку конфигов CS2:
+
+```
+C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg\
+```
+
+Перезапустить CS2 или сменить карту. Игра начнёт отправлять POST-запросы на `http://localhost:3000/`.
+
+### 3. OBS Browser Source
+
+| Параметр | Значение |
+|---|---|
+| URL | `http://localhost:3000` |
+| Ширина | 1920 |
+| Высота | 1080 |
+| Пользовательский CSS | `body { background: transparent !important; }` |
+
+> Socket.IO работает через WebSocket — в OBS Browser Source polling не поддерживается, поэтому в коде явно указан `transports: ["websocket"]`.
+
+Страница администратора открывается в обычном браузере: `http://localhost:3000/admin`
+
+---
 
 ## Структура проекта
 
-- **server/server.js** — Express + Socket.IO, приём GSI POST, раздача state клиентам, роут `/avatar/:steamid` для аватарок.
-- **hud/** — статика HUD: index.html, style.css, main.js (счёт, таймер, бомба, киллфид, логотипы, игроки).
-- **hud/players.js** — список игроков CT/T, аватар, хп, оружие, деньги.
-- **hud/killfeed.js** — отображение убийств (кто кого, оружие, ассист флешем/уроном).
-- **steam/steam.js** — getAvatar(steamid) через Steam Web API.
-- **cfg/gamestate_integration_prohud.vdf** — конфиг GSI для CS2.
+```
+cs2-pro-hud/
+├── server/
+│   └── server.js          # Express + Socket.IO, GSI endpoint, Steam API, webcam API
+├── hud/
+│   ├── index.html         # Основной оверлей
+│   ├── admin.html         # Страница привязки вебок
+│   ├── main.js            # Таймер, топбар, наблюдаемый игрок, webcam-пул, кольцо прогресса
+│   ├── players.js         # Боковые карточки игроков
+│   ├── minimap.js         # Миникарта (Canvas, RAF, многоэтажность Nuke)
+│   ├── killfeed.js        # Kill feed
+│   ├── style.css          # Все стили
+│   └── assets/
+│       ├── weapons/       # SVG-иконки оружий, kill-star.png
+│       └── overviews/     # PNG-радары карт
+├── steam/
+│   └── steam.js           # Steam Web API (аватарки)
+├── cfg/
+│   └── gamestate_integration_prohud.vdf
+├── webcams.json           # Маппинги SteamID64 → URL (создаётся автоматически)
+└── package.json
+```
 
-## Киллфид
+---
 
-Формат данных: в state должен быть массив **`recent_kills`** (или **`kill_feed`**). Каждый элемент:
+## API
 
-| Поле | Описание |
-|------|----------|
-| `killer_steamid` / `killer_name` | Убийца (имя подставится из `allplayers`, если передан steamid) |
-| `victim_steamid` / `victim_name` | Жертва |
-| `weapon` | Оружие (например `weapon_ak47` или `ak47`) — для иконки `assets/weapons/{weapon}.svg` |
-| `assister_steamid` / `assister_name` | Ассистент (опционально) |
-| `assist_type` | `"flash"` (флеш-ассист) или `"damage"` (ассист уроном) |
+| Метод | Путь | Описание |
+|---|---|---|
+| `POST` | `/` | GSI endpoint — принимает данные от CS2 |
+| `GET` | `/admin` | Страница администратора |
+| `GET` | `/api/webcams` | Все маппинги SteamID64 → URL |
+| `POST` | `/api/webcams` | Сохранить / удалить маппинг `{ steamid, url }` |
+| `GET` | `/api/players` | Игроки из текущей игры (для admin-страницы) |
+| `GET` | `/api/mapinfo/:map` | Калибровка миникарты для карты |
+| `GET` | `/avatar/:steamid` | Редирект на аватарку из Steam API |
+| `GET` | `/radar/:map` | PNG-радар карты |
 
-Пример: `{ "killer_steamid": "...", "victim_steamid": "...", "weapon": "ak47", "assister_steamid": "...", "assist_type": "flash" }`.
+---
 
-В интерфейсе: строка «Killer [иконка оружия] Victim», ниже — «Flash: Имя» (жёлтым) или «Assist: Имя» (серым).
+## Поддерживаемые карты (миникарта)
 
-Если `recent_kills` нет, по `allplayers[].state.round_kills` показывается только факт убийства (кто убил, без жертвы и оружия). Сброс при фазе freezetime/over.
+| Карта | Этажей |
+|---|---|
+| de_dust2 | 1 |
+| de_mirage | 1 |
+| de_inferno | 1 |
+| de_overpass | 1 |
+| de_vertigo | 1 |
+| de_ancient | 1 |
+| de_anubis | 1 |
+| de_nuke | 2 (верхний / нижний) |

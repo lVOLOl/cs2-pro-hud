@@ -1,5 +1,63 @@
 const socket = io({ transports: ["websocket", "polling"] })
 
+// ── Webcam pool — pre-load all iframes so switching is instant ────────────────
+let _webcams = {}
+let _webcamIframes = {}   // steamid → <iframe>
+let _activeWebcamSid = null
+
+function makeWebcamUrl(raw) {
+  if (!raw) return ""
+  return raw.includes("autoplay=") ? raw : raw + (raw.includes("?") ? "&" : "?") + "autoplay=1"
+}
+
+function syncWebcamPool() {
+  const pool = document.getElementById("observed_webcam_pool")
+  if (!pool) return
+
+  // Create iframes for new entries
+  for (const sid in _webcams) {
+    const url = makeWebcamUrl(_webcams[sid])
+    if (!url) continue
+    if (!_webcamIframes[sid]) {
+      const f = document.createElement("iframe")
+      f.src = url
+      f.allow = "autoplay; camera; microphone; fullscreen"
+      f.allowFullscreen = true
+      f.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;background:#000;visibility:hidden;pointer-events:none;"
+      pool.appendChild(f)
+      _webcamIframes[sid] = f
+    }
+  }
+
+  // Remove iframes whose URLs were deleted
+  for (const sid in _webcamIframes) {
+    if (!_webcams[sid]) {
+      _webcamIframes[sid].remove()
+      delete _webcamIframes[sid]
+    }
+  }
+}
+
+function showWebcamFor(steamid) {
+  const hasIframe = !!(steamid && _webcamIframes[steamid])
+  for (const sid in _webcamIframes) {
+    const active = sid === steamid && hasIframe
+    _webcamIframes[sid].style.visibility = active ? "visible" : "hidden"
+    _webcamIframes[sid].style.pointerEvents = active ? "auto" : "none"
+  }
+  return hasIframe
+}
+
+async function refreshWebcams() {
+  try {
+    const prev = JSON.stringify(_webcams)
+    _webcams = await fetch("/api/webcams").then(r => r.json())
+    if (JSON.stringify(_webcams) !== prev) syncWebcamPool()
+  } catch {}
+}
+refreshWebcams()
+setInterval(refreshWebcams, 3000)
+
 let lastProcessedKillCount = 0
 let lastRecentKillsLength = 0
 let lastState = null
@@ -417,14 +475,27 @@ function updateObservedPlayer(data) {
   if (!p) {
     if (nameEl) nameEl.textContent = "—"
     if (hpEl) hpEl.textContent = "—"
+    showWebcamFor(null)
+    document.getElementById("observed")?.classList.remove("has-webcam")
+    _activeWebcamSid = null
     return
   }
 
   if (nameEl) nameEl.textContent = p.name || "?"
+
+  // Avatar vs webcam pool
+  const observedSteamid = p.steamid || (player && (player.steamid || player.SteamId)) || null
   if (avatarEl) {
-    avatarEl.src = p.steamid
-      ? (window.location.origin || "http://localhost:3000") + "/avatar/" + encodeURIComponent(p.steamid)
+    avatarEl.src = observedSteamid
+      ? (window.location.origin || "http://localhost:3000") + "/avatar/" + encodeURIComponent(observedSteamid)
       : "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='56'/%3E"
+  }
+  if (observedSteamid !== _activeWebcamSid) {
+    _activeWebcamSid = observedSteamid
+    const hasWebcam = showWebcamFor(observedSteamid)
+    const observedEl = document.getElementById("observed")
+    observedEl?.classList.toggle("has-webcam", hasWebcam)
+    if (avatarEl) avatarEl.style.display = hasWebcam ? "none" : "block"
   }
 
   const state = p.state || {}
