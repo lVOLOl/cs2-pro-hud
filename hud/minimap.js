@@ -264,27 +264,41 @@ function drawMinimap(dt = 0.016) {
     if (!pxl) continue
 
     const color = p.isCT ? "#3b82f6" : "#fecd06"
-    const r = 11
+    const arrowColor = p.isCT ? "rgba(96,165,250,0.9)" : "rgba(254,204,6,0.9)"
+    const r = 16
 
-    // Direction arrow
-    const len = r + 9
+    // Direction arrow (filled triangle)
+    const tipDist  = r + 14   // tip of arrow from center
+    const baseDist = r + 2    // base of arrow (near circle edge)
+    const halfW    = 5        // half-width of arrow base
+    const ax = p.angle
+    const tx = pxl.x + Math.cos(ax) * tipDist
+    const ty = pxl.y + Math.sin(ax) * tipDist
+    const bx = pxl.x + Math.cos(ax) * baseDist
+    const by = pxl.y + Math.sin(ax) * baseDist
+    const px1 = bx + Math.cos(ax + Math.PI / 2) * halfW
+    const py1 = by + Math.sin(ax + Math.PI / 2) * halfW
+    const px2 = bx + Math.cos(ax - Math.PI / 2) * halfW
+    const py2 = by + Math.sin(ax - Math.PI / 2) * halfW
     ctx.beginPath()
-    ctx.moveTo(pxl.x, pxl.y)
-    ctx.lineTo(pxl.x + Math.cos(p.angle) * len, pxl.y + Math.sin(p.angle) * len)
-    ctx.strokeStyle = p.isCT ? "rgba(96,165,250,0.85)" : "rgba(254,204,6,0.85)"
-    ctx.lineWidth = 2
-    ctx.stroke()
+    ctx.moveTo(tx, ty)
+    ctx.lineTo(px1, py1)
+    ctx.lineTo(px2, py2)
+    ctx.closePath()
+    ctx.fillStyle = arrowColor
+    ctx.fill()
 
+    // Circle
     ctx.beginPath()
     ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
     ctx.fillStyle = color
     ctx.fill()
-    ctx.strokeStyle = "rgba(255,255,255,0.85)"
-    ctx.lineWidth = 1.5
+    ctx.strokeStyle = "rgba(255,255,255,0.9)"
+    ctx.lineWidth = 2
     ctx.stroke()
 
     if (p.num != null) {
-      ctx.font = `bold ${r * 1.5}px sans-serif`
+      ctx.font = `bold ${Math.round(r * 1.35)}px sans-serif`
       ctx.textAlign    = "center"
       ctx.textBaseline = "middle"
       ctx.fillStyle = "#fff"
