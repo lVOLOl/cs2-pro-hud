@@ -104,6 +104,7 @@ function normalizeGameState(data) {
         position: pick(state, "position", "Position"),
         round_kills: pick(state, "round_kills"),
         round_killhs: pick(state, "round_killhs"),
+        round_totaldmg: pick(state, "round_totaldmg"),
       },
       weapons: weapons,
       match_stats: {
@@ -210,6 +211,7 @@ socket.on("state", (data) => {
   updateKillfeed(lastState)
   updateTeamLogos(lastState)
   updateMinimap(lastState)
+  updateRoundStats(lastState)
 })
 
 function updateScore(data) {
@@ -784,4 +786,167 @@ function updateTeamLogos(data) {
     tLogo.onerror = () => { tLogo.src = EMPTY_IMG }
     tLogo.src = (t && teamLogoMap[t.name]) ? teamLogoMap[t.name] : (t && t.name) ? "assets/teams/" + String(t.name).replace(/\s+/g, "_") + ".png" : EMPTY_IMG
   }
+}
+
+// ── Round stats overlay ───────────────────────────────────────────────────────
+
+const _adrTotalDmg = {}  // steamid → накопленный урон за матч
+const _prevTickDmg = {}  // steamid → round_totaldmg на прошлом GSI-тике
+let _adrMapLoaded  = null  // имя карты, под которую загружены данные из storage
+
+const _ADR_KEY = "_cs2hud_adr"
+
+function _saveAdr(mapName) {
+  try {
+    localStorage.setItem(_ADR_KEY, JSON.stringify({ map: mapName, dmg: _adrTotalDmg, prev: _prevTickDmg }))
+  } catch {}
+}
+
+function _loadAdr(mapName) {
+  try {
+    const s = JSON.parse(localStorage.getItem(_ADR_KEY) || "null")
+    if (s && s.map === mapName) {
+      Object.assign(_adrTotalDmg, s.dmg  || {})
+      Object.assign(_prevTickDmg, s.prev || {})
+    }
+  } catch {}
+  _adrMapLoaded = mapName
+}
+
+function updateAdrTracking(data) {
+  const mapName = data.map?.name || ""
+  // Один раз загружаем из storage при смене/первой карты
+  if (_adrMapLoaded !== mapName) _loadAdr(mapName)
+
+  const all = data.allplayers || {}
+  let changed = false
+  for (const id in all) {
+    const p    = all[id]
+    const sid  = p.steamid || id
+    const dmg  = p.state?.round_totaldmg ?? 0
+    const prev = _prevTickDmg[sid] ?? 0
+    if (dmg > prev) { _adrTotalDmg[sid] = (_adrTotalDmg[sid] ?? 0) + (dmg - prev); changed = true }
+    _prevTickDmg[sid] = dmg
+  }
+  if (changed) _saveAdr(mapName)
+}
+
+function getAdr(sid, data) {
+  const rounds = (data.map?.team_ct?.score ?? 0) + (data.map?.team_t?.score ?? 0)
+  if (!rounds) return null
+  return Math.round((_adrTotalDmg[sid] ?? 0) / rounds)
+}
+
+let _statsVisible      = false
+let _statsHiding       = false
+let _statsRendered     = false
+let _statsHiddenFreeze = false  // true = already hidden this freeze period, don't re-show
+
+function _showRoundStats(el) {
+  el.style.display = "flex"
+  requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add("is-visible")))
+}
+
+function _hideRoundStats(el) {
+  if (_statsHiding) return
+  _statsHiding = true
+  el.classList.remove("is-visible")
+  setTimeout(() => {
+    el.style.display = "none"
+    _statsVisible  = false
+    _statsHiding   = false
+    _statsRendered = false
+  }, 400)
+}
+
+function updateRoundStats(data) {
+  updateAdrTracking(data)
+  const phase       = data.phase_countdowns?.phase
+  const phaseEndsIn = Number(data.phase_countdowns?.phase_ends_in ?? Infinity)
+  const isFreeze    = phase === "freezetime"
+  const el          = document.getElementById("round_stats")
+  if (!el) return
+
+  if (isFreeze) {
+    if (!_statsVisible && !_statsHiding && !_statsHiddenFreeze) {
+      _statsVisible = true
+      _showRoundStats(el)
+    }
+    if (!_statsRendered && _statsVisible) {
+      _renderRoundStats(data)
+      _statsRendered = true
+    }
+    // Hide 3s before round starts — set flag so we don't re-show on next GSI tick
+    if (phaseEndsIn <= 3 && !_statsHiding) {
+      _statsHiddenFreeze = true
+      _hideRoundStats(el)
+    }
+  } else {
+    // Phase changed away from freezetime — reset flag for next round
+    _statsHiddenFreeze = false
+    if (_statsVisible && !_statsHiding) _hideRoundStats(el)
+  }
+}
+
+function _renderRoundStats(data) {
+  const all  = data.allplayers || {}
+  const ctEl = document.getElementById("round_stats_ct")
+  const tEl  = document.getElementById("round_stats_t")
+  if (!ctEl || !tEl) return
+  const ct = [], t = []
+  for (const id in all) {
+    const p = all[id]
+    ;(p.team === "CT" ? ct : t).push({ ...p, _id: id })
+  }
+  function sortPlayers(arr) {
+    arr.sort((a, b) => {
+      const ka = a.match_stats?.kills ?? 0,  kb = b.match_stats?.kills ?? 0
+      if (kb !== ka) return kb - ka
+      const da = a.match_stats?.deaths ?? 0, db = b.match_stats?.deaths ?? 0
+      const kda = da > 0 ? ka / da : ka,     kdb = db > 0 ? kb / db : kb
+      if (Math.abs(kdb - kda) > 0.001) return kdb - kda
+      return (getAdr(b.steamid || b._id, data) ?? 0) - (getAdr(a.steamid || a._id, data) ?? 0)
+    })
+  }
+  sortPlayers(ct)
+  sortPlayers(t)
+  ctEl.innerHTML = _buildTeamHtml(ct, "CT", data)
+  tEl.innerHTML  = _buildTeamHtml(t, "T", data)
+}
+
+function _buildTeamHtml(players, side, data) {
+  const label  = side === "CT" ? "Counter-Terrorists" : "Terrorists"
+  const origin = window.location.origin || "http://localhost:3000"
+  const blank  = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'/%3E"
+  const header = `<div class="round-stats__team-header">${label}</div>
+<div class="round-stats__col-header">
+  <span></span>
+  <span class="round-stats__col-lbl">PLAYER</span>
+  <span class="round-stats__col-lbl">K</span>
+  <span class="round-stats__col-lbl">A</span>
+  <span class="round-stats__col-lbl">D</span>
+  <span class="round-stats__col-lbl">K/D</span>
+  <span class="round-stats__col-lbl">ADR</span>
+</div>`
+  const rows = players.map(p => {
+    const sid  = p.steamid || p._id
+    const s    = p.match_stats || {}
+    const k    = s.kills   ?? 0
+    const a    = s.assists ?? 0
+    const d    = s.deaths  ?? 0
+    const kd   = d > 0 ? (k / d).toFixed(2) : (k > 0 ? k + ".00" : "0.00")
+    const adr  = getAdr(sid, data) ?? "-"
+    const av   = sid ? `${origin}/avatar/${encodeURIComponent(sid)}` : blank
+    const name = String(p.name || "?").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    return `<div class="round-stats__row">
+  <img class="round-stats__avatar" src="${av}" onerror="this.src='${blank}'" alt="">
+  <span class="round-stats__name">${name}</span>
+  <span class="round-stats__stat round-stats__stat--k">${k}</span>
+  <span class="round-stats__stat round-stats__stat--a">${a}</span>
+  <span class="round-stats__stat round-stats__stat--d">${d}</span>
+  <span class="round-stats__stat round-stats__stat--kd">${kd}</span>
+  <span class="round-stats__stat round-stats__stat--adr">${adr}</span>
+</div>`
+  }).join("")
+  return header + rows
 }
