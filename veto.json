@@ -1,0 +1,45 @@
+{
+  "bo": "BO5",
+  "maps": [
+    {
+      "name": "de_dust2",
+      "status": "played",
+      "score": [
+        13,
+        9
+      ]
+    },
+    {
+      "name": "de_overpass",
+      "status": "active",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_ancient",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_nuke",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_mirage",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    }
+  ]
+}

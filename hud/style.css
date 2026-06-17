@@ -552,11 +552,104 @@ body {
   left: unset;
 }
 
-/* ========== MINIMAP ========== */
-.minimap {
+/* ========== MINIMAP COLUMN (veto bar + minimap stacked) ========== */
+.minimap-col {
   position: fixed;
   top: 20px;
   left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
+/* ========== VETO BAR ========== */
+.veto-bar {
+  width: 350px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  overflow: hidden;
+}
+.veto-bar__bo {
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  line-height: 1;
+}
+.veto-bar__scroll-outer {
+  flex: 1;
+  overflow: hidden;
+  min-width: 0;
+}
+.veto-bar__inner {
+  display: flex;
+  gap: 2px;
+  width: max-content;
+}
+.veto-bar__inner--scroll {
+  /* animation: vetoScroll 18s ease-in-out infinite; */
+}
+@keyframes vetoScroll {
+  0%, 15%  { transform: translateX(0); }
+  50%, 65% { transform: translateX(var(--veto-scroll-dist, 0px)); }
+  95%, 100%{ transform: translateX(0); }
+}
+.veto-bar__maps {
+  display: flex;
+  gap: 2px;
+}
+.veto-map {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 7px;
+  border-radius: 5px;
+  min-width: 54px;
+}
+.veto-map__logo {
+  width: 30px;
+  height: 30px;
+  object-fit: cover;
+  border-radius: 4px;
+  display: block;
+}
+.veto-map__name {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.veto-map__score {
+  font-family: var(--font-display);
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+}
+.veto-map__score-ct  { color: var(--ct); }
+.veto-map__score-sep { color: var(--text-muted); font-size: 11px; margin: 0 1px; }
+.veto-map__score-t   { color: var(--t); }
+
+.veto-map--upcoming .veto-map__name { color: var(--text); }
+.veto-map--active   { background: rgba(34,197,94,0.12); }
+.veto-map--active   .veto-map__name { color: #22c55e; }
+.veto-map--played   .veto-map__logo { opacity: 0.45; filter: grayscale(0.7); }
+.veto-map--played   .veto-map__name { color: var(--text-muted); }
+
+/* ========== MINIMAP ========== */
+.minimap {
+  position: relative;
   width: 350px;
   height: 350px;
   border-radius: var(--radius);

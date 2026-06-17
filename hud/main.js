@@ -140,6 +140,63 @@ function getPhaseEndsIn(data) {
   return phase.phase_ends_in ?? phase.phase_ends_in
 }
 
+// ── Map veto ─────────────────────────────────────────────────────────────────
+const MAP_SHORT = {
+  de_dust2: "DUST2", de_mirage: "MIRAGE", de_inferno: "INFERNO",
+  de_overpass: "OVERPASS", de_vertigo: "VERTIGO", de_ancient: "ANCIENT",
+  de_anubis: "ANUBIS", de_nuke: "NUKE",
+}
+
+socket.on("veto", (data) => { renderVeto(data) })
+
+function renderVeto(veto) {
+  const bar    = document.getElementById("veto_bar")
+  const boEl   = document.getElementById("veto_bo")
+  const mapsEl = document.getElementById("veto_maps")
+  const outer  = document.getElementById("veto_scroll_outer")
+  const inner  = document.getElementById("veto_inner")
+  if (!bar || !mapsEl) return
+
+  const maps = veto.maps || []
+  if (!maps.length) { bar.style.display = "none"; return }
+  bar.style.display = "flex"
+  if (boEl) boEl.textContent = veto.bo || "BO3"
+
+  mapsEl.innerHTML = ""
+  for (const m of maps) {
+    const name = MAP_SHORT[m.name] || (m.name || "").replace("de_", "").toUpperCase()
+    const logo = `assets/overviews/map_logo/${m.name}.png`
+    const status = m.status || "upcoming"
+
+    let scoreHtml = ""
+    if (status === "played" && m.score && m.score.length >= 2) {
+      scoreHtml = `<span class="veto-map__score">
+        <span class="veto-map__score-ct">${m.score[0]}</span>
+        <span class="veto-map__score-sep">:</span>
+        <span class="veto-map__score-t">${m.score[1]}</span>
+      </span>`
+    }
+
+    const div = document.createElement("div")
+    div.className = `veto-map veto-map--${status}`
+    div.innerHTML = `<img class="veto-map__logo" src="${logo}" alt="">
+      <span class="veto-map__name">${name}</span>${scoreHtml}`
+    mapsEl.appendChild(div)
+  }
+
+  // Apply scroll animation if content overflows
+  inner.classList.remove("veto-bar__inner--scroll")
+  inner.style.removeProperty("--veto-scroll-dist")
+  requestAnimationFrame(() => {
+    if (!outer || !inner) return
+    const overflow = inner.scrollWidth - outer.clientWidth
+    if (overflow > 4) {
+      inner.style.setProperty("--veto-scroll-dist", `-${overflow}px`)
+      inner.classList.add("veto-bar__inner--scroll")
+    }
+  })
+}
+
 socket.on("state", (data) => {
   const noDataEl = document.getElementById("no-data")
   if (noDataEl) noDataEl.classList.add("hidden")

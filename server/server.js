@@ -27,9 +27,9 @@ const io = new Server(server, {
 })
 
 io.on("connection", socket => {
-  if (Object.keys(gameState).length > 0) {
-    socket.emit("state", gameState)
-  }
+  if (Object.keys(gameState).length > 0) socket.emit("state", gameState)
+  const veto = loadVeto()
+  if (veto.maps && veto.maps.length > 0) socket.emit("veto", veto)
 })
 
 let gameState = {}
@@ -375,6 +375,27 @@ app.get("/avatar/:steamid", async (req, res) => {
   } catch (e) {
     res.sendStatus(502)
   }
+})
+
+// ── Map veto ─────────────────────────────────────────────────────────────────
+const VETO_FILE = path.join(BASE_DIR, "veto.json")
+
+function loadVeto() {
+  try { return JSON.parse(fs.readFileSync(VETO_FILE, "utf8")) } catch { return { bo: "BO3", maps: [] } }
+}
+function saveVeto(data) {
+  fs.writeFileSync(VETO_FILE, JSON.stringify(data, null, 2))
+}
+
+app.get("/api/veto", (req, res) => res.json(loadVeto()))
+
+app.post("/api/veto", express.json(), (req, res) => {
+  const { bo, maps } = req.body || {}
+  if (!bo) return res.status(400).json({ error: "bo required" })
+  const data = { bo, maps: maps || [] }
+  saveVeto(data)
+  io.emit("veto", data)
+  res.json({ ok: true })
 })
 
 // ── Webcam mappings (steamid64 → vdo.ninja URL) ──────────────────────────────

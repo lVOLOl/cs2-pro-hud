@@ -217,7 +217,61 @@
   </div>
 </div>
 
+<!-- ── MAP VETO ─────────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Map Veto</div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+    <span style="font-size:12px;color:var(--muted);margin-right:4px">Формат:</span>
+    <button class="bo-btn" id="bo_btn_BO1" onclick="selectBO('BO1')">BO1</button>
+    <button class="bo-btn" id="bo_btn_BO3" onclick="selectBO('BO3')">BO3</button>
+    <button class="bo-btn" id="bo_btn_BO5" onclick="selectBO('BO5')">BO5</button>
+  </div>
+
+  <div id="veto_map_list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+  <div style="display:flex;gap:8px">
+    <button class="btn-save" onclick="addVetoMap()">+ Карта</button>
+    <button class="btn-save" onclick="saveVetoData()" style="background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:#3b82f6">Опубликовать</button>
+    <button class="btn-clear" onclick="clearVeto()" style="margin-left:auto">Очистить всё</button>
+  </div>
+</div>
+
 <div class="status-bar" id="status_bar"></div>
+
+<style>
+.bo-btn {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-family: "Outfit", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  transition: all 0.2s;
+}
+.bo-btn.active {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.3);
+  color: var(--text);
+}
+.veto-row {
+  display: grid;
+  grid-template-columns: 48px 180px 130px 56px 12px 56px auto;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+.veto-row img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; }
+.status-select option { background: #0a0b0e; }
+.score-sep { color: var(--muted); font-weight: 700; text-align: center; }
+</style>
 
 <script>
 const ORIGIN = window.location.origin
@@ -356,10 +410,100 @@ function escHtml(str) {
   return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")
 }
 
-// Poll players every 3s
+// ── Map Veto ─────────────────────────────────────────────────────────────────
+const MAPS = ["de_dust2","de_mirage","de_inferno","de_overpass","de_vertigo","de_ancient","de_anubis","de_nuke"]
+const MAP_SHORT = { de_dust2:"DUST2", de_mirage:"MIRAGE", de_inferno:"INFERNO", de_overpass:"OVERPASS",
+  de_vertigo:"VERTIGO", de_ancient:"ANCIENT", de_anubis:"ANUBIS", de_nuke:"NUKE" }
+
+let vetoBo = "BO3"
+let vetoMaps = []  // [{name, status, score:[ct,t]}]
+
+function selectBO(bo) {
+  vetoBo = bo
+  document.querySelectorAll(".bo-btn").forEach(b => b.classList.toggle("active", b.id === `bo_btn_${bo}`))
+}
+
+function addVetoMap(map) {
+  vetoMaps.push({ name: map || "de_dust2", status: "upcoming", score: [0, 0] })
+  renderVetoList()
+}
+
+function removeVetoMap(idx) {
+  vetoMaps.splice(idx, 1)
+  renderVetoList()
+}
+
+function renderVetoList() {
+  const list = document.getElementById("veto_map_list")
+  list.innerHTML = ""
+  vetoMaps.forEach((m, i) => {
+    const row = document.createElement("div")
+    row.className = "veto-row"
+
+    const mapOpts = MAPS.map(n => `<option value="${n}" ${n===m.name?"selected":""}>${MAP_SHORT[n]||n}</option>`).join("")
+    const statusOpts = ["upcoming","active","played"].map(s =>
+      `<option value="${s}" ${s===m.status?"selected":""}>${s==="upcoming"?"Предстоящая":s==="active"?"Активная":"Сыграна"}</option>`
+    ).join("")
+
+    const scoreVis = m.status === "played" ? "" : "visibility:hidden"
+
+    row.innerHTML = `
+      <img src="${ORIGIN}/assets/overviews/map_logo/${m.name}.png" onerror="this.src=''" alt="" style="border-radius:4px">
+      <select class="text-input" onchange="vetoMaps[${i}].name=this.value;renderVetoList()">${mapOpts}</select>
+      <select class="text-input status-select" onchange="vetoMaps[${i}].status=this.value;renderVetoList()">${statusOpts}</select>
+      <input class="text-input" type="number" min="0" max="16" value="${m.score[0]}" style="${scoreVis}"
+        onchange="vetoMaps[${i}].score[0]=+this.value">
+      <span class="score-sep" style="${scoreVis}">:</span>
+      <input class="text-input" type="number" min="0" max="16" value="${m.score[1]}" style="${scoreVis}"
+        onchange="vetoMaps[${i}].score[1]=+this.value">
+      <button class="btn-clear" onclick="removeVetoMap(${i})">✕</button>
+    `
+    list.appendChild(row)
+  })
+}
+
+async function saveVetoData() {
+  // Read current score values from inputs before save
+  document.querySelectorAll("#veto_map_list .veto-row").forEach((row, i) => {
+    const inputs = row.querySelectorAll("input[type=number]")
+    if (inputs.length >= 2) {
+      vetoMaps[i].score = [parseInt(inputs[0].value)||0, parseInt(inputs[1].value)||0]
+    }
+  })
+  await fetch("/api/veto", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bo: vetoBo, maps: vetoMaps })
+  })
+  showStatus("Вето опубликовано")
+}
+
+async function clearVeto() {
+  vetoMaps = []
+  renderVetoList()
+  await fetch("/api/veto", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bo: vetoBo, maps: [] })
+  })
+  showStatus("Вето очищено")
+}
+
+async function loadVetoData() {
+  try {
+    const data = await fetch("/api/veto").then(r => r.json())
+    vetoBo = data.bo || "BO3"
+    vetoMaps = data.maps || []
+    selectBO(vetoBo)
+    renderVetoList()
+  } catch {}
+}
+
+// ── Poll players every 3s ─────────────────────────────────────────────────────
 async function init() {
   await loadWebcams()
   await loadPlayers()
+  await loadVetoData()
   setInterval(async () => {
     await loadWebcams()
     await loadPlayers()

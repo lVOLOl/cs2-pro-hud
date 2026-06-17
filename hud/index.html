@@ -101,8 +101,18 @@
 
 <!-- <div id="killfeed" class="killfeed"></div> -->
 
-<div id="minimap" class="minimap">
-  <canvas id="minimap_canvas" class="minimap__canvas" width="480" height="480"></canvas>
+<div class="minimap-col">
+  <div id="veto_bar" class="veto-bar" style="display:none">
+    <span id="veto_bo" class="veto-bar__bo">BO3</span>
+    <div class="veto-bar__scroll-outer" id="veto_scroll_outer">
+      <div class="veto-bar__inner" id="veto_inner">
+        <div class="veto-bar__maps" id="veto_maps"></div>
+      </div>
+    </div>
+  </div>
+  <div id="minimap" class="minimap">
+    <canvas id="minimap_canvas" class="minimap__canvas" width="480" height="480"></canvas>
+  </div>
 </div>
 
 <script src="socket.io.min.js"></script>
