@@ -289,13 +289,19 @@ function drawMinimap(dt = 0.016) {
     ctx.fill()
 
     // Circle
+    if (p.hasBomb) {
+      const pulse = 0.55 + 0.45 * Math.abs(Math.sin(Date.now() / 350))
+      ctx.shadowColor = "#ef4444"
+      ctx.shadowBlur  = 20 * pulse
+    }
     ctx.beginPath()
     ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
     ctx.fillStyle = color
     ctx.fill()
-    ctx.strokeStyle = "rgba(255,255,255,0.9)"
-    ctx.lineWidth = 2
+    ctx.strokeStyle = p.hasBomb ? `rgba(239,68,68,0.95)` : "rgba(255,255,255,0.9)"
+    ctx.lineWidth   = p.hasBomb ? 3 : 2
     ctx.stroke()
+    ctx.shadowBlur = 0
 
     if (p.num != null) {
       ctx.font = `bold ${Math.round(r * 1.35)}px sans-serif`
@@ -343,20 +349,23 @@ function updateMinimap(data) {
     const alive = (p.state?.health ?? 0) > 0
     const isCT  = (p.team || "").toUpperCase() === "CT"
     const slot  = p.observer_slot ?? null
-    // slot is 0-based: slot 0 = key 1, slot 9 = key 0
     const num   = slot != null ? (slot + 1) % 10 : null
     const floor = _isMultiFloor ? getFloor(pos.z) : null
 
+    let hasBomb = false
+    for (const slot in (p.weapons || {})) {
+      if (String(p.weapons[slot]?.name || "").replace(/^weapon_/i, "").toLowerCase() === "c4") { hasBomb = true; break }
+    }
+
     if (!_players[id]) {
-      _players[id] = { rx: pos.x, ry: pos.y, tx: pos.x, ty: pos.y, angle, targetAngle: angle, alive, isCT, num, floor, deathPos: null }
+      _players[id] = { rx: pos.x, ry: pos.y, tx: pos.x, ty: pos.y, angle, targetAngle: angle, alive, isCT, num, floor, hasBomb, deathPos: null }
     } else {
       const wasAlive = _players[id].alive
-      // Save death position when player just died
       if (wasAlive && !alive) {
         _players[id].deathPos = { wx: _players[id].rx, wy: _players[id].ry, floor: _players[id].floor }
       }
       if (alive) _players[id].deathPos = null
-      Object.assign(_players[id], { tx: pos.x, ty: pos.y, targetAngle: angle, alive, isCT, num, floor })
+      Object.assign(_players[id], { tx: pos.x, ty: pos.y, targetAngle: angle, alive, isCT, num, floor, hasBomb })
     }
   }
 

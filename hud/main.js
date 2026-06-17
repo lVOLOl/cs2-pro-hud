@@ -211,6 +211,7 @@ socket.on("state", (data) => {
   updateKillfeed(lastState)
   updateTeamLogos(lastState)
   updateMinimap(lastState)
+  updateTeamGrenades(lastState)
   updateRoundStats(lastState)
 })
 
@@ -788,53 +789,88 @@ function updateTeamLogos(data) {
   }
 }
 
+// ── Team grenades panel ───────────────────────────────────────────────────────
+
+const TG_TYPES = [
+  { key: "he",    names: ["hegrenade"],              icon: "hegrenade"    },
+  { key: "flash", names: ["flashbang"],              icon: "flashbang"    },
+  { key: "smoke", names: ["smokegrenade"],           icon: "smokegrenade" },
+  { key: "molo",  names: ["molotov", "incgrenade"], icon: "molotov"      },
+]
+
+function updateTeamGrenades(data) {
+  _renderTeamGrenades(data)
+}
+
+function _renderTeamGrenades(data) {
+  const all    = data.allplayers || {}
+  const counts = { CT: {}, T: {} }
+
+  for (const id in all) {
+    const p = all[id]
+    if ((p.state?.health ?? 0) <= 0) continue
+    const side = p.team === "CT" ? "CT" : "T"
+    for (const slot in (p.weapons || {})) {
+      const wname = String(p.weapons[slot]?.name || "").replace(/^weapon_/i, "").toLowerCase()
+      for (const g of TG_TYPES) {
+        if (g.names.includes(wname)) counts[side][g.key] = (counts[side][g.key] ?? 0) + 1
+      }
+    }
+  }
+
+  const ctEl = document.getElementById("tg_ct")
+  const tEl  = document.getElementById("tg_t")
+  if (ctEl) ctEl.innerHTML = _buildTgHtml(counts.CT)
+  if (tEl)  tEl.innerHTML  = _buildTgHtml(counts.T)
+}
+
+function _buildTgHtml(counts) {
+  return TG_TYPES.map(g => {
+    const n = counts[g.key] ?? 0
+    return `<div class="tg-item${n === 0 ? " tg-item--empty" : ""}">
+  <img class="tg-icon" src="assets/weapons/${g.icon}.svg" alt="">
+  <span class="tg-count">${n}</span>
+</div>`
+  }).join("")
+}
+
 // ── Round stats overlay ───────────────────────────────────────────────────────
 
-const _adrTotalDmg = {}  // steamid → накопленный урон за матч
-const _prevTickDmg = {}  // steamid → round_totaldmg на прошлом GSI-тике
-let _adrMapLoaded  = null  // имя карты, под которую загружены данные из storage
-
-const _ADR_KEY = "_cs2hud_adr"
-
-function _saveAdr(mapName) {
-  try {
-    localStorage.setItem(_ADR_KEY, JSON.stringify({ map: mapName, dmg: _adrTotalDmg, prev: _prevTickDmg }))
-  } catch {}
-}
-
-function _loadAdr(mapName) {
-  try {
-    const s = JSON.parse(localStorage.getItem(_ADR_KEY) || "null")
-    if (s && s.map === mapName) {
-      Object.assign(_adrTotalDmg, s.dmg  || {})
-      Object.assign(_prevTickDmg, s.prev || {})
-    }
-  } catch {}
-  _adrMapLoaded = mapName
-}
+const _adrTotalDmg    = {}   // steamid → суммарный урон за все раунды
+const _adrRoundPeak   = {}   // steamid → максимальный round_totaldmg в текущем раунде
+let _adrPrevScore     = -1   // предыдущий ctScore + tScore
+let _adrRoundsCounted = 0    // сколько раундов мы зафиксировали
 
 function updateAdrTracking(data) {
-  const mapName = data.map?.name || ""
-  // Один раз загружаем из storage при смене/первой карты
-  if (_adrMapLoaded !== mapName) _loadAdr(mapName)
+  const phase = data.phase_countdowns?.phase || data.round?.phase
+  const score = (data.map?.team_ct?.score ?? 0) + (data.map?.team_t?.score ?? 0)
+  const all   = data.allplayers || {}
 
-  const all = data.allplayers || {}
-  let changed = false
-  for (const id in all) {
-    const p    = all[id]
-    const sid  = p.steamid || id
-    const dmg  = p.state?.round_totaldmg ?? 0
-    const prev = _prevTickDmg[sid] ?? 0
-    if (dmg > prev) { _adrTotalDmg[sid] = (_adrTotalDmg[sid] ?? 0) + (dmg - prev); changed = true }
-    _prevTickDmg[sid] = dmg
+  // Во время live накапливаем максимальный round_totaldmg — тот же источник что DiR
+  if (phase === "live") {
+    for (const id in all) {
+      const sid = all[id].steamid || id
+      const dmg = all[id].state?.round_totaldmg ?? 0
+      if (dmg > (_adrRoundPeak[sid] ?? 0)) _adrRoundPeak[sid] = dmg
+    }
   }
-  if (changed) _saveAdr(mapName)
+
+  // Счёт вырос → раунд завершился, фиксируем накопленный DiR каждого игрока
+  if (_adrPrevScore >= 0 && score > _adrPrevScore) {
+    _adrRoundsCounted++
+    for (const id in all) {
+      const sid = all[id].steamid || id
+      _adrTotalDmg[sid] = (_adrTotalDmg[sid] ?? 0) + (_adrRoundPeak[sid] ?? 0)
+    }
+    for (const k in _adrRoundPeak) delete _adrRoundPeak[k]
+  }
+
+  _adrPrevScore = score
 }
 
-function getAdr(sid, data) {
-  const rounds = (data.map?.team_ct?.score ?? 0) + (data.map?.team_t?.score ?? 0)
-  if (!rounds) return null
-  return Math.round((_adrTotalDmg[sid] ?? 0) / rounds)
+function getAdr(sid) {
+  if (!_adrRoundsCounted) return null
+  return Math.round((_adrTotalDmg[sid] ?? 0) / _adrRoundsCounted)
 }
 
 let _statsVisible      = false
@@ -905,16 +941,16 @@ function _renderRoundStats(data) {
       const da = a.match_stats?.deaths ?? 0, db = b.match_stats?.deaths ?? 0
       const kda = da > 0 ? ka / da : ka,     kdb = db > 0 ? kb / db : kb
       if (Math.abs(kdb - kda) > 0.001) return kdb - kda
-      return (getAdr(b.steamid || b._id, data) ?? 0) - (getAdr(a.steamid || a._id, data) ?? 0)
+      return (getAdr(b.steamid || b._id) ?? 0) - (getAdr(a.steamid || a._id) ?? 0)
     })
   }
   sortPlayers(ct)
   sortPlayers(t)
-  ctEl.innerHTML = _buildTeamHtml(ct, "CT", data)
-  tEl.innerHTML  = _buildTeamHtml(t, "T", data)
+  ctEl.innerHTML = _buildTeamHtml(ct, "CT")
+  tEl.innerHTML  = _buildTeamHtml(t, "T")
 }
 
-function _buildTeamHtml(players, side, data) {
+function _buildTeamHtml(players, side) {
   const label  = side === "CT" ? "Counter-Terrorists" : "Terrorists"
   const origin = window.location.origin || "http://localhost:3000"
   const blank  = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'/%3E"
@@ -926,7 +962,6 @@ function _buildTeamHtml(players, side, data) {
   <span class="round-stats__col-lbl">A</span>
   <span class="round-stats__col-lbl">D</span>
   <span class="round-stats__col-lbl">K/D</span>
-  <span class="round-stats__col-lbl">ADR</span>
 </div>`
   const rows = players.map(p => {
     const sid  = p.steamid || p._id
@@ -935,7 +970,7 @@ function _buildTeamHtml(players, side, data) {
     const a    = s.assists ?? 0
     const d    = s.deaths  ?? 0
     const kd   = d > 0 ? (k / d).toFixed(2) : (k > 0 ? k + ".00" : "0.00")
-    const adr  = getAdr(sid, data) ?? "-"
+    const adr  = getAdr(sid) ?? "-"
     const av   = sid ? `${origin}/avatar/${encodeURIComponent(sid)}` : blank
     const name = String(p.name || "?").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
     return `<div class="round-stats__row">
@@ -945,7 +980,6 @@ function _buildTeamHtml(players, side, data) {
   <span class="round-stats__stat round-stats__stat--a">${a}</span>
   <span class="round-stats__stat round-stats__stat--d">${d}</span>
   <span class="round-stats__stat round-stats__stat--kd">${kd}</span>
-  <span class="round-stats__stat round-stats__stat--adr">${adr}</span>
 </div>`
   }).join("")
   return header + rows

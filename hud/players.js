@@ -113,6 +113,7 @@ function updatePlayers(data) {
     const deaths = matchStats.deaths ?? 0
     const money = (state.money ?? state.Money) ?? 0
     const roundKills = state.round_kills ?? 0
+    const roundDmg = state.round_totaldmg ?? 0
 
     let team = String(p.team || "").toUpperCase()
     if (team === "COUNTER-TERRORIST" || team === "0") team = "CT"
@@ -181,7 +182,10 @@ function updatePlayers(data) {
               <span class="player__kd-k">${kills}</span><span class="player__kd-sep">/</span><span class="player__kd-d">${deaths}</span>
             </div>
             <div class="player__kd__HP">
-              <span class="player__HP"><img src="assets/weapons/hp.svg" alt="" srcset="">${health}</span>
+              ${health <= 0
+                ? `<span class="player__HP player__HP--dir"><span class="player__dir-val">${roundDmg}</span><span class="player__dir-lbl">DiR</span></span>`
+                : `<span class="player__HP"><img src="assets/weapons/hp.svg" alt="" srcset="">${health}</span>`
+              }
             </div>
           </div>
         </div>
