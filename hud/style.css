@@ -1251,3 +1251,139 @@ body {
   width: 18px;
   height: 18px;
 }
+
+/* ========== BROADCAST MODE ========== */
+.observed--broadcast {
+  padding: 0;
+  gap: 0;
+  flex-direction: column;
+  align-items: stretch;
+  width: 280px;
+  min-height: 0;
+  min-width: 0;
+  height: 185px;
+}
+.observed--broadcast .observed__info,
+.observed--broadcast .observed__stats,
+.observed--broadcast .observed__hpbar {
+  display: none !important;
+}
+/* Avatar fills card when no webcam */
+.observed--broadcast .observed__avatar-wrap {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+}
+.observed--broadcast .observed__avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  object-fit: cover;
+}
+/* Webcam fills card */
+.observed--broadcast .observed__webcam,
+.observed--broadcast.has-webcam .observed__webcam {
+  display: block !important;
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  border: none !important;
+}
+.observed--broadcast.has-webcam { padding-left: 0; }
+.observed--broadcast.has-webcam .observed__avatar-wrap { display: none; }
+
+/* Broadcast overlay */
+.obs-bc { display: none; }
+.observed--broadcast .obs-bc {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Webcam area with corner overlays */
+.obs-bc__corners {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex: 1;
+  padding: 0 3px 4px;
+  background: linear-gradient(180deg, rgb(0,0,0,0) 0%, rgb(0,0,0,0.5) 70%, rgb(0,0,0,0.95) 100%);
+}
+
+/* Grenades — bottom-left */
+.obs-bc__grenades { display: flex; align-items: center; gap: 0px; }
+.obs-bc__gren { position: relative; width: 25px; height: 25px; }
+.obs-bc__gren img { width: 25px; height: 25px; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.9)); }
+.obs-bc__gren-count {
+  position: absolute; bottom: -2px; right: -3px;
+  font-size: 10px; font-weight: 700; color: #fff;
+  background: rgba(0,0,0,0.85); border-radius: 50%;
+  width: 14px; height: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* Ammo — bottom-right */
+.obs-bc__ammo {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,0.9));
+}
+.obs-bc__clip { font-family: var(--font-display); font-size: 26px; color: #fff; line-height: 1; }
+.obs-bc__ammo-sep { font-size: 14px; color: rgba(255,255,255,0.4); margin: 0 1px; }
+.obs-bc__reserve { font-size: 14px; color: rgba(255,255,255,0.55); }
+
+/* Bottom HP bar */
+.obs-bc__bar {
+  position: relative;
+  height: 34px;
+  background: rgba(0,0,0,0.85);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+/* Red damage "tear" — behind the fill, fades out */
+.obs-bc__bar-dmg {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  background: #ef4444;
+  z-index: 1;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Team-colored HP fill */
+.obs-bc__bar-fill {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  z-index: 2;
+  transition: width 0.2s ease;
+  opacity: 0.45;
+}
+.observed--broadcast.observed--ct .obs-bc__bar-fill { background: var(--ct); }
+.observed--broadcast.observed--t  .obs-bc__bar-fill { background: var(--t); }
+.obs-bc__name {
+  position: relative; z-index: 3;
+  font-size: 15px; font-weight: 700; color: #fff;
+  flex: 1; text-transform: uppercase; letter-spacing: 0.05em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.obs-bc__hp {
+  position: relative; z-index: 3;
+  font-family: var(--font-display); font-size: 22px; line-height: 1;
+  color: #fff;
+}
+

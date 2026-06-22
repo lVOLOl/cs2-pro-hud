@@ -237,6 +237,18 @@
   </div>
 </div>
 
+<!-- ── DISPLAY MODES ─────────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Display Modes</div>
+
+  <div style="display:flex;align-items:center;gap:16px;margin-top:12px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Observed player</span>
+    <button class="bo-btn" id="obs_mode_detail" onclick="setObsMode('detail')">Detail</button>
+    <button class="bo-btn" id="obs_mode_broadcast" onclick="setObsMode('broadcast')">Broadcast</button>
+    <span id="obs_mode_hint" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
+  </div>
+</div>
+
 <div class="status-bar" id="status_bar"></div>
 
 <style>
@@ -499,11 +511,36 @@ async function loadVetoData() {
   } catch {}
 }
 
+// ── Display modes ─────────────────────────────────────────────────────────────
+function _applyObsModeUI(mode) {
+  document.getElementById("obs_mode_detail")?.classList.toggle("active", mode === "detail")
+  document.getElementById("obs_mode_broadcast")?.classList.toggle("active", mode === "broadcast")
+}
+
+async function setObsMode(mode) {
+  _applyObsModeUI(mode)
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ obs_mode: mode })
+  })
+  showStatus("Obs mode: " + mode)
+}
+
+async function loadSettings() {
+  try {
+    const res = await fetch("/api/settings")
+    const s = await res.json()
+    _applyObsModeUI(s.obs_mode || "detail")
+  } catch {}
+}
+
 // ── Poll players every 3s ─────────────────────────────────────────────────────
 async function init() {
   await loadWebcams()
   await loadPlayers()
   await loadVetoData()
+  await loadSettings()
   setInterval(async () => {
     await loadWebcams()
     await loadPlayers()

@@ -66,6 +66,31 @@ let lastState = null
 let _obsWeaponName = null
 let _obsDisplayedClip = null
 let _obsClipAnimTimer = null
+let _obsBcPlayer    = null
+const _obsBcHpMap   = {}     // steamid → last known HP (for damage animation)
+
+// ── Observed mode toggle ──────────────────────────────────────────────────────
+let _obsBroadcast = false
+
+function _applyObsMode() {
+  const el = document.getElementById("observed")
+  const btn = document.getElementById("obs_mode_btn")
+  if (!el) return
+  if (_obsBroadcast) {
+    el.classList.add("observed--broadcast")
+    if (btn) btn.textContent = "⊟"
+  } else {
+    el.classList.remove("observed--broadcast")
+    if (btn) btn.textContent = "⊞"
+  }
+}
+
+document.addEventListener("DOMContentLoaded", () => { _applyObsMode() })
+
+socket.on("settings", settings => {
+  _obsBroadcast = settings.obs_mode === "broadcast"
+  _applyObsMode()
+})
 
 function pick(obj, ...keys) {
   if (!obj) return undefined
@@ -618,15 +643,60 @@ function updateObservedPlayer(data) {
 
   updateObsAmmo(weaponAmmoEl, activeWeapon)
 
+  const { grenades } = classifyWeapons({ weapons: rawWeapons })
+
   if (grenadesEl) {
-    // classifyWeapons определён в players.js (загружается после, но вызывается при событии)
-    const { grenades } = classifyWeapons({ weapons: rawWeapons })
     grenadesEl.innerHTML = grenades.map(g =>
       `<div class="obs-grenade${g.isActive ? " active" : ""}">
         <img src="assets/weapons/${g.name}.svg" alt="${g.name}" onerror="this.style.display='none'">
         ${g.count > 1 ? `<span class="obs-grenade__count">${g.count}</span>` : ""}
       </div>`
     ).join("")
+  }
+
+  // ── Broadcast mode elements ───────────────────────────────────────────────
+  const bcNameEl  = document.getElementById("obs_bc_name")
+  const bcHpEl    = document.getElementById("obs_bc_hp")
+  const bcHpbarEl = document.getElementById("obs_bc_hpbar")
+  const bcGrenEl  = document.getElementById("obs_bc_grenades")
+  const bcAmmoEl  = document.getElementById("obs_bc_ammo")
+
+  if (bcNameEl) bcNameEl.textContent = p.name || "?"
+
+  if (bcHpEl) bcHpEl.textContent = health
+  if (bcHpbarEl) bcHpbarEl.style.width = Math.max(0, Math.min(100, health)) + "%"
+
+  // Damage tear animation
+  const bcDmgEl = document.getElementById("obs_bc_hpdmg")
+  const sid = p.steamid || (player && (player.steamid || player.SteamId)) || "_"
+  const prevHp = _obsBcHpMap[sid] ?? health
+  if (health < prevHp && bcDmgEl) {
+    bcDmgEl.style.transition = "none"
+    bcDmgEl.style.width = Math.max(0, Math.min(100, prevHp)) + "%"
+    bcDmgEl.style.opacity = "0.7"
+    void bcDmgEl.offsetWidth
+    bcDmgEl.style.transition = "opacity 1.5s ease 0.1s"
+    bcDmgEl.style.opacity = "0"
+  }
+  _obsBcHpMap[sid] = health
+
+  if (bcGrenEl) {
+    bcGrenEl.innerHTML = grenades.map(g =>
+      `<div class="obs-bc__gren">
+        <img src="assets/weapons/${g.name}.svg" alt="" onerror="this.style.display='none'">
+        ${g.count > 1 ? `<span class="obs-bc__gren-count">${g.count}</span>` : ""}
+      </div>`
+    ).join("")
+  }
+
+  if (bcAmmoEl) {
+    if (activeWeapon && activeWeapon.ammo_clip != null) {
+      const clip = activeWeapon.ammo_clip
+      const res  = activeWeapon.ammo_reserve ?? ""
+      bcAmmoEl.innerHTML = `<span class="obs-bc__clip">${clip}</span><span class="obs-bc__ammo-sep">/</span><span class="obs-bc__reserve">${res}</span>`
+    } else {
+      bcAmmoEl.innerHTML = ""
+    }
   }
 }
 

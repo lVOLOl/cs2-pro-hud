@@ -30,6 +30,7 @@ io.on("connection", socket => {
   if (Object.keys(gameState).length > 0) socket.emit("state", gameState)
   const veto = loadVeto()
   if (veto.maps && veto.maps.length > 0) socket.emit("veto", veto)
+  socket.emit("settings", loadSettings())
 })
 
 let gameState = {}
@@ -395,6 +396,26 @@ app.post("/api/veto", express.json(), (req, res) => {
   const data = { bo, maps: maps || [] }
   saveVeto(data)
   io.emit("veto", data)
+  res.json({ ok: true })
+})
+
+// ── HUD Settings ─────────────────────────────────────────────────────────────
+const SETTINGS_FILE = path.join(BASE_DIR, "settings.json")
+
+function loadSettings() {
+  try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, "utf8")) } catch { return {} }
+}
+
+function saveSettings(data) {
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(data, null, 2))
+}
+
+app.get("/api/settings", (req, res) => res.json(loadSettings()))
+
+app.post("/api/settings", express.json(), (req, res) => {
+  const updated = { ...loadSettings(), ...req.body }
+  saveSettings(updated)
+  io.emit("settings", updated)
   res.json({ ok: true })
 })
 
