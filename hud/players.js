@@ -96,11 +96,15 @@ function classifyWeapons(player) {
   return { primary, pistol, grenades, hasBomb, hasDefuser, activeName }
 }
 
+const _deadPlayers = new Set()
+
 function updatePlayers(data) {
   if (!data.allplayers) return
 
   let ctHTML = ""
   let tHTML = ""
+  const nowDead = new Set()
+  const newlyDied = []
 
   for (const id in data.allplayers) {
     const p = data.allplayers[id]
@@ -164,9 +168,14 @@ function updatePlayers(data) {
       </div>`
     }
 
-    const deadClass = health <= 0 ? " player--dead" : ""
+    const isDead = health <= 0
+    if (isDead) {
+      nowDead.add(id)
+      if (!_deadPlayers.has(id)) newlyDied.push(id)
+    }
+    const deadClass = (isDead && _deadPlayers.has(id)) ? " player--dead" : ""
 
-    const html = `<div class="player ${teamClass}${deadClass}">
+    const html = `<div class="player ${teamClass}${deadClass}" data-pid="${id}">
       <div class="player__accent"></div>
       <div class="player__avatar_money-wrap">
         <div class="player__avatar-wrap">
@@ -200,7 +209,7 @@ function updatePlayers(data) {
         </div>
       </div>
       <div class="player__hpbar" style="width:${health}%"></div>
-      ${roundKills > 0 ? `<div class="player__round-kills">${"<img src='assets/weapons/kill-star.png' class='player__kill-star' alt=''>".repeat(roundKills)}</div>` : ""}
+      ${roundKills > 0 ? `<div class="player__round-kills"><span class="player__rk-badge">${roundKills}</span></div>` : ""}
     </div>`
 
     if (team === "CT") ctHTML += html
@@ -209,4 +218,16 @@ function updatePlayers(data) {
 
   document.getElementById("players_ct").innerHTML = ctHTML
   document.getElementById("players_t").innerHTML = tHTML
+
+  // Trigger death transition for players who just died this tick
+  for (const pid of newlyDied) {
+    const el = document.querySelector(`.player[data-pid="${pid}"]`)
+    if (el) {
+      void el.offsetWidth
+      el.classList.add("player--dead")
+    }
+  }
+
+  _deadPlayers.clear()
+  for (const pid of nowDead) _deadPlayers.add(pid)
 }

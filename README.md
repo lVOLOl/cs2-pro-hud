@@ -1,31 +1,33 @@
 # CS2 Pro HUD
 
-Broadcast-оверлей для CS2 в стиле профессиональных трансляций. Работает через CS2 Game State Integration (GSI) — официальный API, никаких читов.
+Broadcast-оверлей для CS2 в стиле профессиональных трансляций. Работает через CS2 Game State Integration (GSI) — официальный API, никаких читов и инъекций.
 
 ---
 
 ## Возможности
 
 ### Топбар
-- Счёт CT / T с логотипами команд (загружаются через Steam API)
+- Счёт CT / T с логотипами команд
 - Таймер раунда с тремя режимами:
   - Стандартный обратный отсчёт
   - Красный + иконка C4 + пульсирующая анимация — бомба заложена
   - Зелёный + иконка дефьюзера — идёт разминирование
 - SVG-кольцо прогресса вокруг таймера (60 fps, requestAnimationFrame)
 - Счётчик живых игроков `X vs X` под таймером
+- **Fire streak** — если команда берёт 5 раундов подряд, её панель загорается 🔥 с оранжевым пульсирующим свечением; стрик сбрасывается при проигрыше раунда и корректно переносится через смену сторон на перерыве
 
 ### Карточки игроков (боковые панели)
 - 5 игроков CT слева, 5 T справа
 - Аватарки из Steam API
 - HP-бар, броня (кевлар / шлем + кевлар), деньги, observer-слот
 - Оружие + пистолет + гранаты в инвентаре с SVG-иконками
-- Звёзды убийств в раунде (по одной за каждый килл)
+- Звёзды убийств в раунде
 - **DiR** (Damage in Round) — когда игрок мёртв, вместо HP показывается урон нанесённый им за раунд
+- Плавная анимация смерти: карточка сужается и тускнеет
 
 ### Карточка наблюдаемого игрока
 
-**Два режима, переключаются в панели администратора:**
+Два режима, переключаются в панели администратора:
 
 **Detail** (стандартный):
 - Аватарка или живая вебка слева
@@ -36,49 +38,61 @@ Broadcast-оверлей для CS2 в стиле профессиональны
 
 **Broadcast** (для трансляций):
 - Вебка / аватарка заполняет весь блок
-- Иконки гранат в левом нижнем углу
-- Боезапас (clip / reserve) в правом нижнем углу
+- Иконки гранат в левом нижнем углу, боезапас в правом
 - Внизу: плашка с именем игрока и числом HP
 - HP-бар в цвет команды (CT = синий, T = жёлтый) с красным «отколом» при получении урона
 
 ### Гранаты команды
-- Панель всегда видна, CT слева — T справа
-- Показывает количество HE / Flash / Smoke / Molotov у живых игроков каждой команды
+- Панель всегда видна: CT слева, T справа
+- Количество HE / Flash / Smoke / Molotov у живых игроков каждой команды
 - Иконки с 0 затемняются
 
 ### Статистика раунда (Round Stats)
 - Появляется в freezetime, исчезает за 3 секунды до старта раунда
 - Плавный fade-in / fade-out
-- Показывает K / A / D, K/D для каждого игрока обеих команд
-- Сортировка: по убийствам → по K/D
+- K / A / D, K/D для каждого игрока обеих команд
+- **ADR** (Average Damage per Round) — накапливается локально из `round_totaldmg` на протяжении всего матча
+- Сортировка: убийства → K/D → ADR
 
 ### Миникарта
 - Все соревновательные карты: Dust2, Mirage, Inferno, Overpass, Vertigo, Ancient, Anubis, Nuke
-- de_nuke: два этажа (верхний / нижний) по Z-координате
-- Плавное движение точек (lerp, 60 fps), стрелка направления взгляда
-- Номера observer-слотов (1–0)
-- **Бомбоносец** подсвечивается красным пульсирующим свечением
-- Маркер бомбы (пульсирует когда заложена)
+- de_nuke: два этажа (верхний / нижний) автоматически по Z-координате
+- Плавное движение точек (lerp 60 fps), стрелка направления взгляда
+- Номера observer-слотов (1–0) внутри точек
+- Бомбоносец подсвечивается красным пульсирующим кольцом
+- Маркер C4 (пульсирует когда заложена)
 - Крестики смерти в цвете команды, сбрасываются при новом раунде
+- **Гранаты на миникарте** (требует CSSharp-плагин):
+  - Smoke — расширяющийся серый круг (реальный радиус 144 units, анимация 3.5 с)
+  - Molotov / Inferno — пульсирующий оранжевый круг (150 units)
+  - HE — жёлтая вспышка (80 units)
+  - Flashbang — белая вспышка (60 units)
+  - Каждый тип — своя иконка + полупрозрачный круг поражения
 
 ### Оверлеи
-- **TACTICAL PAUSE** — всплывает при тайм-ауте, показывает команду
-- **DEFUSING** — панель с зелёным таймером разминирования и бейджем KIT
-- **Kill Feed** — лента убийств с иконками оружий
+- **TACTICAL PAUSE** — всплывает при тайм-ауте, показывает команду CT/T
+- **DEFUSING** — зелёный таймер разминирования с точностью до сотых, бейдж KIT при наличии кит
+- **Kill Feed** — лента убийств: оружие, хедшот, слепое убийство, сквозь дым, через стену, ноускоп, ассист (флеш / урон)
 
 ### Webcam
 - Привязка SteamID64 → URL (VDO.ninja или любой iframe-совместимый источник)
-- Все iframe'ы предзагружены в фоне — переключение между игроками мгновенное
+- Все iframe'ы предзагружены в фоне — переключение мгновенное
 - В режиме Broadcast вебка занимает весь блок наблюдаемого игрока
+
+### Map Veto Bar
+- Стрип над миникартой
+- BO1 / BO3 / BO5, статус карты (предстоящая / активная / сыграна), счёт по картам
+- Прокрутка при большом числе карт
 
 ### Страница администратора
 `http://localhost:3000/admin`
 
-- **Webcam Bindings** — привязка SteamID64 → URL вебки, автоматически показывает игроков из текущей игры
-- **Map Veto** — редактор вето (BO1 / BO3 / BO5, статус карты, счёт по картам), публикуется в HUD
-- **Display Modes** — переключение режима карточки наблюдаемого игрока (Detail / Broadcast)
+- **Webcam Bindings** — привязка SteamID64 → URL вебки, автоматически подтягивает игроков из текущей игры (обновляется каждые 3 с)
+- **Map Veto** — редактор вето, публикуется мгновенно через Socket.IO
+- **Display Modes** — Detail / Broadcast; переключатель гранат на миникарте
+- **Steam API** — поле для ввода ключа прямо в интерфейсе (сохраняется в `.env`, без перезапуска сервера)
 
-> Изменения в admin.html применяются мгновенно во всех OBS browser source через Socket.IO — `localStorage` не используется.
+> Все изменения в admin-панели применяются во всех открытых Browser Source мгновенно через Socket.IO — без перезагрузки страниц.
 
 ---
 
@@ -100,7 +114,7 @@ npm install -g pkg
 pkg server/server.js --targets node18-win-x64 --out-path dist/
 ```
 
-Рядом с `server.exe` должна лежать папка `hud/` со всеми ассетами.
+Рядом с `server.exe` должна находиться папка `hud/` со всеми ассетами.
 
 ---
 
@@ -108,11 +122,17 @@ pkg server/server.js --targets node18-win-x64 --out-path dist/
 
 ### 1. Steam API Key (аватарки)
 
-```
-STEAM_API_KEY=ВАШ_КЛЮЧ node server/server.js
+Получить ключ на [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey).
+
+**Вариант A** — через панель администратора (рекомендуется):
+Открыть `http://localhost:3000/admin`, секция **Steam API**, вставить ключ и нажать «Сохранить».
+
+**Вариант B** — через файл `.env` в корне проекта:
+```env
+STEAM_API_KEY=ВАШ_32_СИМВОЛЬНЫЙ_КЛЮЧ
 ```
 
-Ключ: [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey)
+Без ключа HUD работает полностью — аватарки просто не загружаются.
 
 ### 2. Game State Integration
 
@@ -122,7 +142,7 @@ STEAM_API_KEY=ВАШ_КЛЮЧ node server/server.js
 C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\game\csgo\cfg\
 ```
 
-Перезапустить CS2 или сменить карту.
+Перезапустить CS2 (или сменить карту).
 
 ### 3. OBS Browser Source
 
@@ -133,7 +153,52 @@ C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\ga
 | Высота | 1080 |
 | Пользовательский CSS | `body { background: transparent !important; }` |
 
-Страница администратора открывается в обычном браузере: `http://localhost:3000/admin`
+Административная панель открывается в обычном браузере: `http://localhost:3000/admin`
+
+### 4. Логотипы команд
+
+Положить PNG-файлы в `hud/assets/teams/`. Имя файла = название команды из CS2 с заменой пробелов на `_`:
+
+```
+hud/assets/teams/Natus_Vincere.png
+hud/assets/teams/Team_Spirit.png
+```
+
+---
+
+## CSSharp плагин (гранаты на миникарте)
+
+CS2 GSI не отдаёт данные о брошенных гранатах в обычном матче. Плагин для CounterStrikeSharp хукает игровые события и шлёт координаты на HUD-сервер.
+
+### Что делает
+
+При взрыве каждой гранаты отправляет `POST http://localhost:3000/grenade` с телом `{id, type, x, y, z}`:
+
+| Тип | Значение `type` | TTL |
+|---|---|---|
+| Smoke | `smoke` | 20 с |
+| Molotov / Incgrenade | `inferno` | 10 с |
+| HE | `frag` | 3 с |
+| Flashbang | `flashbang` | 2 с |
+
+### Компиляция
+
+```bash
+cd csharp
+dotnet build -c Release
+```
+
+### Установка
+
+Скопировать `csharp/bin/Release/net8.0/GrenadeTracker.dll` на CS2-сервер:
+
+```
+game/csgo/addons/counterstrikesharp/plugins/GrenadeTracker/GrenadeTracker.dll
+```
+
+Перезапустить сервер или выполнить `css_plugins_load GrenadeTracker`.
+
+После установки включить гранаты в админ-панели: **Display Modes → Гранаты на карте → Вкл**.
 
 ---
 
@@ -142,26 +207,53 @@ C:\Program Files (x86)\Steam\steamapps\common\Counter-Strike Global Offensive\ga
 ```
 cs2-pro-hud/
 ├── server/
-│   └── server.js          # Express + Socket.IO, GSI, Steam API, все REST-эндпоинты
+│   └── server.js          # Express + Socket.IO, GSI, Kill Detection, Fire Streak, все REST API
 ├── hud/
 │   ├── index.html         # Основной оверлей (DOM)
 │   ├── admin.html         # Панель администратора
-│   ├── main.js            # Топбар, таймер, наблюдаемый игрок, round stats, grenades
+│   ├── main.js            # Топбар, таймер, fire streak, наблюдаемый игрок, round stats
 │   ├── players.js         # Боковые карточки игроков, классификация оружий
-│   ├── minimap.js         # Миникарта (Canvas, RAF, lerp, многоэтажность)
+│   ├── minimap.js         # Миникарта (Canvas, RAF, lerp, многоэтажность, гранаты)
 │   ├── killfeed.js        # Лента убийств
-│   ├── style.css          # Все стили
+│   ├── style.css          # Все стили (~1400 строк)
 │   └── assets/
-│       ├── weapons/       # SVG-иконки оружий, kill-star.png
-│       └── overviews/     # PNG-радары и логотипы карт
+│       ├── weapons/       # SVG-иконки оружий + kill/modifier PNG
+│       ├── overviews/
+│       │   ├── radar/     # PNG-радары карт + .txt файлы калибровки
+│       │   └── map_logo/  # Превью карт для veto bar
+│       ├── logos/         # Fallback логотип команды
+│       └── teams/         # Логотипы команд (добавить вручную)
 ├── steam/
 │   └── steam.js           # Steam Web API (аватарки)
+├── csharp/
+│   ├── GrenadeTracker.cs  # CounterStrikeSharp плагин для гранат
+│   └── GrenadeTracker.csproj
 ├── cfg/
-│   └── gamestate_integration_prohud.vdf
-├── webcams.json           # SteamID64 → URL вебки (создаётся автоматически)
+│   └── gamestate_integration_prohud.vdf   # Конфиг GSI для CS2
+├── .env                   # STEAM_API_KEY (не коммитится)
+├── settings.json          # obs_mode, show_grenades (создаётся автоматически)
 ├── veto.json              # Данные veto (создаётся автоматически)
-├── settings.json          # Настройки HUD: режим отображения (создаётся автоматически)
+├── webcams.json           # SteamID64 → URL (создаётся автоматически)
 └── package.json
+```
+
+---
+
+## Архитектура
+
+```
+CS2 → POST / (0.1 с) → server.js
+  normalizeGSI()              нормализация полей
+  trackGrenadeThrows()        трекинг бросков гранат по тикам
+  detectKills()               сравнение HP / kills между тиками
+  fire streak logic           отслеживание серии побед по стороне (CT/T)
+  io.emit("state", gameState) → OBS Browser Source
+
+CSSharp Plugin → POST /grenade → activeGrenades{} → io.emit("grenades")
+setInterval 500ms → удаление устаревших гранат → io.emit("grenades")
+
+Admin Browser → POST /api/settings|veto|webcams
+  → запись файла → io.emit() → мгновенное обновление в OBS
 ```
 
 ---
@@ -171,17 +263,21 @@ cs2-pro-hud/
 | Метод | Путь | Описание |
 |---|---|---|
 | `POST` | `/` | GSI endpoint — данные от CS2 |
+| `GET` | `/api/state` | Текущий gameState как JSON (для отладки) |
 | `GET` | `/admin` | Страница администратора |
 | `GET` | `/api/players` | Игроки из текущей игры |
-| `GET` | `/api/webcams` | Все привязки SteamID64 → URL |
-| `POST` | `/api/webcams` | Сохранить / удалить привязку `{ steamid, url }` |
-| `GET` | `/api/veto` | Текущие данные veto |
-| `POST` | `/api/veto` | Обновить veto `{ bo, maps }` |
-| `GET` | `/api/settings` | Настройки HUD |
-| `POST` | `/api/settings` | Обновить настройки (emit'ит всем клиентам через Socket.IO) |
-| `GET` | `/api/mapinfo/:map` | Калибровка миникарты |
-| `GET` | `/avatar/:steamid` | Аватарка из Steam API |
+| `GET/POST` | `/api/webcams` | Привязки SteamID64 → URL |
+| `GET/POST` | `/api/veto` | Данные veto |
+| `GET/POST` | `/api/settings` | Настройки HUD |
+| `GET/POST` | `/api/steam-key` | Чтение / обновление Steam API Key |
+| `POST` | `/api/streak` | Ручная установка стрика `{ side, streak }` |
+| `GET` | `/api/mapinfo/:map` | Калибровка миникарты (pos_x, pos_y, scale) |
+| `GET` | `/avatar/:steamid` | 302-редирект на аватарку Steam |
 | `GET` | `/radar/:map` | PNG-радар карты |
+| `POST` | `/grenade` | CSSharp: координаты взрыва гранаты |
+| `POST` | `/kill` | CSSharp: обогащённые данные убийства (wallbang, noscope и т.д.) |
+
+Socket.IO события от сервера: `state`, `grenades`, `settings`, `veto`.
 
 ---
 
@@ -196,4 +292,4 @@ cs2-pro-hud/
 | de_vertigo | 1 |
 | de_ancient | 1 |
 | de_anubis | 1 |
-| de_nuke | 2 (верхний / нижний) |
+| de_nuke | 2 (верхний / нижний по Z) |

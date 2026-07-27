@@ -1,3 +1,4 @@
 {
-  "obs_mode": "broadcast"
+  "obs_mode": "broadcast",
+  "show_grenades": false
 }

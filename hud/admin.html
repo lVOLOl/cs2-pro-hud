@@ -247,6 +247,32 @@
     <button class="bo-btn" id="obs_mode_broadcast" onclick="setObsMode('broadcast')">Broadcast</button>
     <span id="obs_mode_hint" style="font-size:12px;color:var(--muted);margin-left:8px"></span>
   </div>
+
+  <div style="display:flex;align-items:center;gap:16px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Гранаты на карте</span>
+    <button class="bo-btn" id="grenades_on"  onclick="setGrenades(true)">Вкл</button>
+    <button class="bo-btn" id="grenades_off" onclick="setGrenades(false)">Выкл</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:8px">Требует CSSharp плагин</span>
+  </div>
+</div>
+
+<!-- ── STEAM API ──────────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Steam API</div>
+
+  <div style="display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:100px">API Key</span>
+    <input class="text-input" id="steam_api_key" type="text"
+           placeholder="Вставьте Steam Web API Key..."
+           style="font-family:monospace;font-size:12px;letter-spacing:0.04em;flex:1">
+    <span id="steam_key_status" style="font-size:12px;white-space:nowrap;min-width:120px"></span>
+    <button class="btn-save" onclick="saveSteamKey()">Сохранить</button>
+  </div>
+  <p style="font-size:12px;color:var(--muted);margin-top:8px;max-width:860px">
+    Ключ нужен для аватаров игроков. Получить:
+    <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener"
+       style="color:#3b82f6;text-decoration:none">steamcommunity.com/dev/apikey</a>
+  </p>
 </div>
 
 <div class="status-bar" id="status_bar"></div>
@@ -517,6 +543,11 @@ function _applyObsModeUI(mode) {
   document.getElementById("obs_mode_broadcast")?.classList.toggle("active", mode === "broadcast")
 }
 
+function _applyGrenadesUI(on) {
+  document.getElementById("grenades_on")?.classList.toggle("active", on !== false)
+  document.getElementById("grenades_off")?.classList.toggle("active", on === false)
+}
+
 async function setObsMode(mode) {
   _applyObsModeUI(mode)
   await fetch("/api/settings", {
@@ -527,12 +558,56 @@ async function setObsMode(mode) {
   showStatus("Obs mode: " + mode)
 }
 
+async function setGrenades(on) {
+  _applyGrenadesUI(on)
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ show_grenades: on })
+  })
+  showStatus("Гранаты: " + (on ? "вкл" : "выкл"))
+}
+
 async function loadSettings() {
   try {
     const res = await fetch("/api/settings")
     const s = await res.json()
     _applyObsModeUI(s.obs_mode || "detail")
+    _applyGrenadesUI(s.show_grenades !== false)
   } catch {}
+}
+
+// ── Steam API Key ─────────────────────────────────────────────────────────────
+async function loadSteamKey() {
+  try {
+    const data = await fetch("/api/steam-key").then(r => r.json())
+    const el = document.getElementById("steam_key_status")
+    if (!el) return
+    if (data.set) {
+      el.textContent = "✓ " + data.masked
+      el.style.color = "var(--green)"
+    } else {
+      el.textContent = "не задан"
+      el.style.color = "var(--muted)"
+    }
+  } catch {}
+}
+
+async function saveSteamKey() {
+  const key = document.getElementById("steam_api_key").value.trim()
+  if (!key) { showStatus("Введите API ключ", "error"); return }
+  const res = await fetch("/api/steam-key", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key })
+  })
+  if (res.ok) {
+    document.getElementById("steam_api_key").value = ""
+    showStatus("Steam API Key сохранён")
+    await loadSteamKey()
+  } else {
+    showStatus("Ошибка сохранения", "error")
+  }
 }
 
 // ── Poll players every 3s ─────────────────────────────────────────────────────
@@ -541,6 +616,7 @@ async function init() {
   await loadPlayers()
   await loadVetoData()
   await loadSettings()
+  await loadSteamKey()
   setInterval(async () => {
     await loadWebcams()
     await loadPlayers()

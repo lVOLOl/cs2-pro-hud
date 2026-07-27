@@ -44,7 +44,9 @@ let _minimapImg     = null
 let _isMultiFloor   = false
 
 const _players = {}
-let _bomb          = null   // { wx, wy, wz, state }
+let _bomb          = null
+let _grenades      = {}
+let _showGrenades  = true
 let _prevRoundPhase = null
 let _rafId         = null
 let _lastFrameTime = null
@@ -176,6 +178,126 @@ function canvas_h() {
   return document.getElementById("minimap_canvas")?.height || CANVAS_W
 }
 
+// ── Grenade icons (preloaded for canvas drawImage) ────────────────
+const _gIcons = {}
+;["smokegrenade", "molotov", "hegrenade", "flashbang"].forEach(name => {
+  const img = new Image()
+  img.src = `assets/weapons/${name}.svg`
+  _gIcons[name] = img
+})
+
+function worldToCanvasRadius(worldUnits) {
+  if (!_minimapInfo || !_minimapImg) return 0
+  const info = _isMultiFloor ? _minimapInfo.floors[0] : _minimapInfo
+  const iw = _minimapImg.naturalWidth || 1024
+  return worldUnits / info.scale * (canvas_w() / iw)
+}
+
+function updateMinimapGrenades(grenades) {
+  _grenades = grenades || {}
+}
+
+function drawGrenades(ctx) {
+  if (!_showGrenades) return
+  const now = Date.now()
+  for (const gid in _grenades) {
+    const g = _grenades[gid]
+    const pos = parseVec(g.position)
+    if (!pos) continue
+    const floor = _isMultiFloor ? getFloor(pos.z) : null
+    const pxl = worldToCanvas(pos.x, pos.y, floor)
+    if (!pxl) continue
+
+    const type = g.type
+
+    if (type === "smoke") {
+      const effecttime = g.effecttime !== undefined
+        ? parseFloat(g.effecttime)
+        : (g.ts ? (now - g.ts) / 1000 : 0)
+      const deployT = effecttime > 0 ? Math.min(1, effecttime / 3.5) : 0
+      const maxR = worldToCanvasRadius(144)
+      const r = Math.max(6, maxR * deployT)
+
+      ctx.beginPath()
+      ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
+      ctx.fillStyle = "rgba(160, 165, 170, 0.4)"
+      ctx.fill()
+      ctx.strokeStyle = "rgba(210, 215, 220, 0.8)"
+      ctx.lineWidth = 2
+      ctx.stroke()
+
+      const icon = _gIcons["smokegrenade"]
+      if (icon?.complete && icon.naturalWidth > 0) {
+        ctx.globalAlpha = 0.85
+        ctx.drawImage(icon, pxl.x - 11, pxl.y - 11, 22, 22)
+        ctx.globalAlpha = 1
+      }
+
+    } else if (type === "inferno") {
+      const r = Math.max(10, worldToCanvasRadius(150))
+      const pulse = 0.65 + 0.35 * Math.sin(now / 280)
+
+      ctx.globalAlpha = pulse
+      ctx.beginPath()
+      ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
+      ctx.fillStyle = "rgba(239, 100, 20, 0.4)"
+      ctx.fill()
+      ctx.strokeStyle = "rgba(239, 68, 68, 0.9)"
+      ctx.lineWidth = 2
+      ctx.stroke()
+      ctx.globalAlpha = 1
+
+      const icon = _gIcons["molotov"]
+      if (icon?.complete && icon.naturalWidth > 0) {
+        ctx.drawImage(icon, pxl.x - 11, pxl.y - 11, 22, 22)
+      }
+
+    } else if (type === "frag") {
+      const r = Math.max(10, worldToCanvasRadius(80))
+      const pulse = 0.45 + 0.55 * Math.abs(Math.sin(now / 110))
+
+      ctx.globalAlpha = pulse
+      ctx.shadowColor = "#fbbf24"
+      ctx.shadowBlur = 16
+      ctx.beginPath()
+      ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
+      ctx.fillStyle = "rgba(251, 191, 36, 0.55)"
+      ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.strokeStyle = "rgba(251, 191, 36, 0.95)"
+      ctx.lineWidth = 2
+      ctx.stroke()
+      ctx.globalAlpha = 1
+
+      const icon = _gIcons["hegrenade"]
+      if (icon?.complete && icon.naturalWidth > 0) {
+        ctx.drawImage(icon, pxl.x - 11, pxl.y - 11, 22, 22)
+      }
+
+    } else if (type === "flashbang") {
+      const r = Math.max(8, worldToCanvasRadius(60))
+      const pulse = 0.45 + 0.55 * Math.abs(Math.sin(now / 80))
+
+      ctx.globalAlpha = pulse
+      ctx.shadowColor = "#fff"
+      ctx.shadowBlur = 20
+      ctx.beginPath()
+      ctx.arc(pxl.x, pxl.y, r, 0, Math.PI * 2)
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)"
+      ctx.fill()
+      ctx.shadowBlur = 0
+      ctx.globalAlpha = 1
+
+      const icon = _gIcons["flashbang"]
+      if (icon?.complete && icon.naturalWidth > 0) {
+        ctx.globalAlpha = 0.85
+        ctx.drawImage(icon, pxl.x - 11, pxl.y - 11, 22, 22)
+        ctx.globalAlpha = 1
+      }
+    }
+  }
+}
+
 // ── RAF loop ──────────────────────────────────────────────────────
 
 function startRaf() {
@@ -231,6 +353,9 @@ function drawMinimap(dt = 0.016) {
     ctx.moveTo(pxl.x + s, pxl.y - s); ctx.lineTo(pxl.x - s, pxl.y + s)
     ctx.stroke()
   }
+
+  // ── Grenades ─────────────────────────────────────────────────────
+  drawGrenades(ctx)
 
   // ── Bomb ─────────────────────────────────────────────────────────
   if (_bomb) {
@@ -319,12 +444,15 @@ function updateMinimap(data) {
   const mapName = data.map?.name
   if (mapName) loadMinimapAssets(mapName)
 
-  // Clear death positions on new round (freezetime)
+  // Clear death positions and grenades on new round (freezetime)
   const roundPhase = data.map?.phase
   if (roundPhase === "freezetime" && _prevRoundPhase !== "freezetime") {
     for (const id in _players) _players[id].deathPos = null
+    _grenades = {}
   }
   _prevRoundPhase = roundPhase
+
+  _grenades = data.grenades || {}
 
   // Bomb position
   const bomb = data.bomb

@@ -90,6 +90,11 @@ document.addEventListener("DOMContentLoaded", () => { _applyObsMode() })
 socket.on("settings", settings => {
   _obsBroadcast = settings.obs_mode === "broadcast"
   _applyObsMode()
+  if (typeof _showGrenades !== "undefined") _showGrenades = settings.show_grenades !== false
+})
+
+socket.on("grenades", grenades => {
+  if (typeof updateMinimapGrenades === "function") updateMinimapGrenades(grenades)
 })
 
 function pick(obj, ...keys) {
@@ -157,6 +162,7 @@ function normalizeGameState(data) {
     bomb: Object.keys(bomb).length ? { countdown: bomb.countdown ?? bomb.Countdown, position: bomb.position ?? bomb.Position, state: bomb.state ?? bomb.State, defuse_countdown: bomb.defuse_countdown ?? bomb.defuseCountdown } : null,
     recent_kills: data.recent_kills,
     player: data.player || data.Player,
+    fire_side: data.fire_side ?? null,
   }
 }
 
@@ -248,6 +254,12 @@ function updateScore(data) {
   const tEl = document.getElementById("t_score")
   if (ctEl && ct) ctEl.innerText = ct.score != null ? ct.score : 0
   if (tEl && t) tEl.innerText = t.score != null ? t.score : 0
+
+  const fireSide = data.fire_side  // "CT", "T", or null
+  const ctTeam   = document.querySelector(".team--ct")
+  const tTeam    = document.querySelector(".team--t")
+  if (ctTeam) ctTeam.classList.toggle("team--fire", fireSide === "CT")
+  if (tTeam)  tTeam.classList.toggle("team--fire",  fireSide === "T")
 
   const all = data.allplayers || {}
   let ctAlive = 0, tAlive = 0
@@ -628,7 +640,7 @@ function updateObservedPlayer(data) {
   if (obsRoundKillsEl) {
     const rk = state.round_kills ?? 0
     obsRoundKillsEl.innerHTML = rk > 0
-      ? "<img src='assets/weapons/kill-star.png' class='player__kill-star' alt=''>".repeat(rk)
+      ? `<span class="player__rk-badge">${rk}</span>`
       : ""
   }
 

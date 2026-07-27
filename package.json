@@ -17,10 +17,13 @@
       "cfg/**/*",
       "node_modules/socket.io/client-dist/**/*"
     ],
-    "targets": ["node18-win-x64"]
+    "targets": [
+      "node18-win-x64"
+    ]
   },
   "dependencies": {
     "body-parser": "^2.2.2",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "socket.io": "^4.8.3"
   }

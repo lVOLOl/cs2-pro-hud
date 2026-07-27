@@ -1,3 +1,4 @@
+require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") })
 const express = require("express")
 const bodyParser = require("body-parser")
 const http = require("http")
@@ -31,12 +32,35 @@ io.on("connection", socket => {
   const veto = loadVeto()
   if (veto.maps && veto.maps.length > 0) socket.emit("veto", veto)
   socket.emit("settings", loadSettings())
+  if (Object.keys(activeGrenades).length > 0) socket.emit("grenades", activeGrenades)
 })
 
 let gameState = {}
 let prevAllplayers = {}
 let prevRoundPhase = null
 let recentKills = []
+let _fireSide    = null  // "CT" or "T" — which side is on streak
+let _fireStreak  = 0
+let _prevCtScore = -1
+let _prevTScore  = -1
+let _prevMapName = ""
+let _halfSeen    = false  // intermission was observed; flip side when it ends
+
+// ── Grenade tracking (via CSSharp plugin) ─────────────────────────
+const activeGrenades = {}
+const GRENADE_TTL = { smoke: 20000, inferno: 10000, frag: 3000, flashbang: 2000 }
+
+setInterval(() => {
+  const now = Date.now()
+  let changed = false
+  for (const id in activeGrenades) {
+    if (now - activeGrenades[id].ts > activeGrenades[id].ttl) {
+      delete activeGrenades[id]
+      changed = true
+    }
+  }
+  if (changed) io.emit("grenades", activeGrenades)
+}, 500)
 
 // Фазы, в которых происходят убийства
 const LIVE_PHASES = new Set(["live", "planted", "defusing"])
@@ -91,6 +115,7 @@ function normalizeGSI(raw) {
     allplayers: d.allplayers ?? raw.allplayers ?? {},
     phase_countdowns: d.phase_countdowns ?? raw.phase_countdowns,
     bomb: d.bomb ?? raw.bomb,
+    grenades: d.grenades ?? raw.grenades ?? {},
     auth: d.auth ?? raw.auth,
   }
 }
@@ -242,6 +267,16 @@ function pruneCsharpKills() {
 
 app.use(bodyParser.json())
 
+// Grenade tracker (CSSharp plugin → HUD minimap)
+app.post("/grenade", express.json(), (req, res) => {
+  const { id, type, x, y, z } = req.body || {}
+  if (!id || !type) return res.sendStatus(400)
+  const ttl = GRENADE_TTL[type] ?? 10000
+  activeGrenades[id] = { type, position: `${x}, ${y}, ${z}`, ts: Date.now(), ttl }
+  io.emit("grenades", activeGrenades)
+  res.sendStatus(200)
+})
+
 // Endpoint для CSSharp плагина
 app.post("/kill", (req, res) => {
   pruneCsharpKills()
@@ -263,6 +298,49 @@ app.post("/", (req, res) => {
   const normalized = normalizeGSI(body)
   const curr = normalized.allplayers || {}
   const roundPhase = normalized.round?.phase
+
+  // Track win streak by SIDE (CT/T), flipping at halftime side swap
+  const ctScore  = normalized.map?.team_ct?.score ?? 0
+  const tScore   = normalized.map?.team_t?.score  ?? 0
+  const mapName  = normalized.map?.name || ""
+  const mapPhase = normalized.map?.phase || ""
+
+  // Reset everything on map change or match end
+  if ((mapName && mapName !== _prevMapName) || mapPhase === "gameover") {
+    _fireSide = null; _fireStreak = 0; _prevCtScore = -1; _prevTScore = -1; _halfSeen = false
+  }
+  _prevMapName = mapName
+
+  // Halftime: set flag when intermission starts, flip fire side when it ends
+  if (mapPhase === "intermission") {
+    if (!_halfSeen) { _halfSeen = true; _prevCtScore = -1; _prevTScore = -1 }
+  } else if (_halfSeen && mapPhase) {
+    // Intermission just ended → sides have swapped → flip which side holds the streak
+    _fireSide = _fireSide === "CT" ? "T" : _fireSide === "T" ? "CT" : null
+    _halfSeen = false
+    _prevCtScore = -1; _prevTScore = -1
+  }
+
+  // Safety: reset score tracking at warmup
+  if (roundPhase === "warmup") {
+    _prevCtScore = -1; _prevTScore = -1
+  }
+
+  // Only detect winner when a round truly ended (live → over/freezetime transition)
+  const roundJustEnded = LIVE_PHASES.has(prevRoundPhase || "") &&
+                         (roundPhase === "over" || roundPhase === "freezetime")
+
+  if (roundJustEnded && _prevCtScore >= 0 && (ctScore !== _prevCtScore || tScore !== _prevTScore)) {
+    let winnerSide = null
+    if (ctScore > _prevCtScore)    winnerSide = "CT"
+    else if (tScore > _prevTScore) winnerSide = "T"
+    if (winnerSide) {
+      if (winnerSide === _fireSide) _fireStreak++
+      else { _fireSide = winnerSide; _fireStreak = 1 }
+    }
+  }
+  _prevCtScore = ctScore
+  _prevTScore  = tScore
 
   if (roundPhase === "freezetime" || roundPhase === "warmup") {
     if (roundPhase === "freezetime") {
@@ -293,13 +371,23 @@ app.post("/", (req, res) => {
   }
 
   prevRoundPhase = roundPhase
-  gameState = { ...normalized, recent_kills: recentKills }
+  gameState = { ...normalized, recent_kills: recentKills, fire_side: _fireStreak >= 5 ? _fireSide : null }
   io.emit("state", gameState)
   res.sendStatus(200)
 })
 
 app.get("/api/state", (req, res) => {
   res.json(gameState)
+})
+
+// Manual streak override (for when server restarted mid-match)
+app.post("/api/streak", express.json(), (req, res) => {
+  const { side, streak } = req.body || {}
+  if (side !== undefined)   _fireSide   = side   || null
+  if (streak !== undefined) _fireStreak = parseInt(streak) || 0
+  gameState = { ...gameState, fire_side: _fireStreak >= 5 ? _fireSide : null }
+  io.emit("state", gameState)
+  res.json({ fire_side: gameState.fire_side, streak: _fireStreak })
 })
 
 // Map overview metadata from CS2 game files
@@ -376,6 +464,34 @@ app.get("/avatar/:steamid", async (req, res) => {
   } catch (e) {
     res.sendStatus(502)
   }
+})
+
+// ── Steam API key management ──────────────────────────────────────────────────
+const ENV_FILE = path.join(BASE_DIR, ".env")
+
+function updateEnvKey(key, value) {
+  let content = ""
+  try { content = fs.readFileSync(ENV_FILE, "utf8") } catch {}
+  const line = `${key}=${value}`
+  const re = new RegExp(`^${key}=.*$`, "m")
+  content = re.test(content)
+    ? content.replace(re, line)
+    : (content.trimEnd() ? content.trimEnd() + "\n" : "") + line + "\n"
+  fs.writeFileSync(ENV_FILE, content, "utf8")
+}
+
+app.get("/api/steam-key", (req, res) => {
+  const k = process.env.STEAM_API_KEY || ""
+  res.json({ set: !!k, masked: k ? k.slice(0, 4) + "****" + k.slice(-4) : "" })
+})
+
+app.post("/api/steam-key", express.json(), (req, res) => {
+  const { key } = req.body || {}
+  if (!key || typeof key !== "string") return res.status(400).json({ error: "key required" })
+  const trimmed = key.trim()
+  updateEnvKey("STEAM_API_KEY", trimmed)
+  process.env.STEAM_API_KEY = trimmed
+  res.json({ ok: true })
 })
 
 // ── Map veto ─────────────────────────────────────────────────────────────────
