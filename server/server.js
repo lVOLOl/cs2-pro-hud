@@ -1,10 +1,11 @@
-require("dotenv").config({ path: require("path").join(__dirname, "..", ".env") })
+const path = require("path")
+const _baseDir = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, "..")
+require("dotenv").config({ path: path.join(_baseDir, ".env") })
 const express = require("express")
 const bodyParser = require("body-parser")
 const http = require("http")
 const fs = require("fs")
 const { Server } = require("socket.io")
-const path = require("path")
 const { getAvatar } = require("../steam/steam.js")
 
 const BASE_DIR = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, "..")

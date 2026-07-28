@@ -1,4 +1,13 @@
 {
   "bo": "BO1",
-  "maps": []
+  "maps": [
+    {
+      "name": "de_cache",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    }
+  ]
 }
