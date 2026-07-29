@@ -79,6 +79,41 @@ Broadcast-оверлей для CS2 в стиле профессиональны
 - Все iframe'ы предзагружены в фоне — переключение мгновенное
 - В режиме Broadcast вебка занимает весь блок наблюдаемого игрока
 
+### Player Card (индивидуальная карточка игрока)
+
+Отдельная страница-оверлей для каждого игрока. Открывается как отдельный Browser Source в OBS для стримерских раскладок.
+
+**URL:** `http://localhost:3000/player/1` … `http://localhost:3000/player/10`
+
+Каждый URL привязан к конкретному наблюдательному слоту (1–10). Номер слота берётся из пути URL, выполняется поиск SteamID в `player-cards.json → slots`, и карточка автоматически показывает данные нужного игрока.
+
+**Что отображается:**
+- Анимированный фон (плавающие орбы, частицы, световые засветки на Canvas)
+- Турнирная информация (две строки — название + стадия)
+- Счёт CT : T + таймер раунда (с режимами: заморозка, бомба заложена, разминирование) + название карты
+- Вебкам (iframe) или аватарка Steam — автоматически по тому, есть ли привязка в `webcams.json`
+- Имя игрока + K / A / D за матч
+- Иконка уровня Faceit (level_1 … level_10) + ELO
+- Иконка роли игрока (carry, sniper, entry, anchor, rifler, support) + название роли
+
+**Настройка данных** через `/api/player-cards` (POST) или файл `player-cards.json`:
+
+```json
+{
+  "tournament": ["НАЗВАНИЕ ТУРНИРА", "Стадия"],
+  "slots": { "1": "76561198...", "2": "76561199..." },
+  "players": {
+    "76561198...": { "elo": 3055, "role": "CARRY" }
+  }
+}
+```
+
+**Необходимые ассеты** (положить в `hud/assets/faceit/`):
+- `level_1.png` … `level_10.png` — иконки уровней Faceit
+- `carry.svg`, `sniper.svg`, `entry.svg`, `anchor.svg`, `rifler.svg`, `support.svg` — иконки ролей
+
+Все данные обновляются в реальном времени через Socket.IO (`state`, `player-cards`, `webcams`, `veto`).
+
 ### Map Veto Bar
 - Стрип над миникартой
 - BO1 / BO3 / BO5, статус карты (предстоящая / активная / сыграна), счёт по картам
@@ -225,6 +260,7 @@ cs2-pro-hud/
 ├── hud/
 │   ├── index.html         # Основной оверлей (DOM)
 │   ├── admin.html         # Панель администратора
+│   ├── player-card.html   # Индивидуальная карточка игрока (/player/1–10)
 │   ├── main.js            # Топбар, таймер, fire streak, наблюдаемый игрок, round stats
 │   ├── players.js         # Боковые карточки игроков, классификация оружий
 │   ├── minimap.js         # Миникарта (Canvas, RAF, lerp, многоэтажность, гранаты)
@@ -236,7 +272,8 @@ cs2-pro-hud/
 │       │   ├── radar/     # PNG-радары карт + .txt файлы калибровки
 │       │   └── map_logo/  # Превью карт для veto bar
 │       ├── logos/         # Fallback логотип команды
-│       └── teams/         # Логотипы команд (добавить вручную)
+│       ├── teams/         # Логотипы команд (добавить вручную)
+│       └── faceit/        # level_1–10.png + иконки ролей .svg
 ├── steam/
 │   └── steam.js           # Steam Web API (аватарки)
 ├── csharp/
@@ -246,6 +283,7 @@ cs2-pro-hud/
 │   └── gamestate_integration_prohud.vdf   # Конфиг GSI для CS2
 ├── .env                   # STEAM_API_KEY (не коммитится)
 ├── settings.json          # obs_mode, show_grenades (создаётся автоматически)
+├── player-cards.json      # Данные карточек: tournament, slots, players (ELO, role)
 ├── veto.json              # Данные veto (создаётся автоматически)
 ├── webcams.json           # SteamID64 → URL (создаётся автоматически)
 └── package.json
@@ -290,6 +328,7 @@ Admin Browser → POST /api/settings|veto|webcams
 | `GET` | `/radar/:map` | PNG-радар карты |
 | `POST` | `/grenade` | CSSharp: координаты взрыва гранаты |
 | `POST` | `/kill` | CSSharp: обогащённые данные убийства (wallbang, noscope и т.д.) |
+| `GET` | `/player/:slot` | Индивидуальная карточка игрока (slot = 1–10) |
 | `GET` | `/api/logos` | Список загруженных файлов логотипов из `hud/assets/teams/` |
 | `POST` | `/api/logo` | Загрузка нового логотипа (multipart/form-data, поле `logo`) |
 | `GET/POST` | `/api/player-cards` | Данные карточек игроков; POST принимает `{ team_logos: { ct, t } }` для назначения логотипов |
