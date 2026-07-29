@@ -1,8 +1,40 @@
 {
-  "bo": "BO1",
+  "bo": "BO5",
   "maps": [
     {
       "name": "de_cache",
+      "status": "active",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_anubis",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_mirage",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_nuke",
+      "status": "upcoming",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_ancient",
       "status": "upcoming",
       "score": [
         0,

@@ -181,6 +181,8 @@ const MAP_SHORT = {
 
 socket.on("veto", (data) => { renderVeto(data) })
 
+socket.on("logos-updated", () => { refreshLogoMap() })
+
 function renderVeto(veto) {
   const bar    = document.getElementById("veto_bar")
   const boEl   = document.getElementById("veto_bo")
@@ -382,6 +384,7 @@ function updateBomb(data) {
         defuseInitial = val
         // Показываем badge KIT если время ≤ 5.5s
         if (kitBadge) kitBadge.style.display = val <= 5.5 ? "inline-block" : "none"
+        if (defuseWrap) defuseWrap.style.setProperty("--defuse-duration", val + "s")
       }
       defuseSyncValue = val
       defuseSyncAt = Date.now()
@@ -493,7 +496,7 @@ function startRingRaf() {
   if (_ringRafId) return
   function tick() {
     if (!_ringState) { _ringRafId = null; applyRing(0, "#fff"); return }
-    applyRing(ringProgress(), _ringColor)
+        applyRing(ringProgress(), _ringColor)
     _ringRafId = requestAnimationFrame(tick)
   }
   _ringRafId = requestAnimationFrame(tick)
@@ -520,6 +523,7 @@ function updateTimerRing(data) {
     _ringStartAt = Date.now()
   } else if (bombState !== "planted" && bombState !== "defusing" && !isPause) {
     _ringState = null; _ringInitial = null; _ringStartAt = null
+
     _pauseSyncValue = null; _pauseSyncAt = null
   }
 
@@ -855,19 +859,72 @@ function updateKillfeed(data) {
 
 const teamLogoMap = {}
 const EMPTY_IMG = "assets/logos/logo.svg"
+let _lastCtName = null
+let _lastTName  = null
+let _teamLogos  = { ct: null, t: null }
+
+async function refreshLogoMap() {
+  try {
+    const logos = await fetch("/api/logos").then(r => r.json())
+    for (const k in teamLogoMap) delete teamLogoMap[k]
+    for (const l of logos) {
+      const baseName = l.file.replace(/\.[^.]+$/, "")
+      const displayName = baseName.replace(/_/g, " ")
+      const url = "assets/teams/" + l.file
+      teamLogoMap[displayName] = url
+      teamLogoMap[baseName] = url
+    }
+    _lastCtName = null
+    _lastTName = null
+    if (lastState) updateTeamLogos(lastState)
+  } catch {}
+}
+refreshLogoMap()
+
+socket.on("player-cards", (cards) => {
+  if (cards && cards.team_logos) {
+    _teamLogos = { ct: cards.team_logos.ct || null, t: cards.team_logos.t || null }
+    _lastCtName = null
+    _lastTName  = null
+    if (lastState) updateTeamLogos(lastState)
+  }
+})
+
 function updateTeamLogos(data) {
   if (!data.map) return
   const ct = data.map.team_ct
-  const t = data.map.team_t
+  const t  = data.map.team_t
+  const ctName = ct?.name || null
+  const tName  = t?.name  || null
+
   const ctLogo = document.getElementById("ct_logo")
-  const tLogo = document.getElementById("t_logo")
-  if (ctLogo) {
+  if (ctLogo && (ctName !== _lastCtName || _lastCtName === null)) {
+    _lastCtName = ctName
     ctLogo.onerror = () => { ctLogo.src = EMPTY_IMG }
-    ctLogo.src = (ct && teamLogoMap[ct.name]) ? teamLogoMap[ct.name] : (ct && ct.name) ? "assets/teams/" + String(ct.name).replace(/\s+/g, "_") + ".png" : EMPTY_IMG
+    if (_teamLogos.ct) {
+      ctLogo.src = "assets/teams/" + _teamLogos.ct
+    } else if (ctName && teamLogoMap[ctName]) {
+      ctLogo.src = teamLogoMap[ctName]
+    } else if (ctName) {
+      ctLogo.src = "assets/teams/" + String(ctName).replace(/\s+/g, "_") + ".png"
+    } else {
+      ctLogo.src = EMPTY_IMG
+    }
   }
-  if (tLogo) {
+
+  const tLogo = document.getElementById("t_logo")
+  if (tLogo && (tName !== _lastTName || _lastTName === null)) {
+    _lastTName = tName
     tLogo.onerror = () => { tLogo.src = EMPTY_IMG }
-    tLogo.src = (t && teamLogoMap[t.name]) ? teamLogoMap[t.name] : (t && t.name) ? "assets/teams/" + String(t.name).replace(/\s+/g, "_") + ".png" : EMPTY_IMG
+    if (_teamLogos.t) {
+      tLogo.src = "assets/teams/" + _teamLogos.t
+    } else if (tName && teamLogoMap[tName]) {
+      tLogo.src = teamLogoMap[tName]
+    } else if (tName) {
+      tLogo.src = "assets/teams/" + String(tName).replace(/\s+/g, "_") + ".png"
+    } else {
+      tLogo.src = EMPTY_IMG
+    }
   }
 }
 

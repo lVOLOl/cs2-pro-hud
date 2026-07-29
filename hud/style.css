@@ -1243,12 +1243,12 @@ body {
 .player__round-kills {
   position: absolute;
   bottom: 22px;
-  right: 55px;
+  right: 75px;
   z-index: 10;
 }
 .player--t .player__round-kills {
   right: unset;
-  left: 55px;
+  left: 75px;
 }
 .player__rk-badge {
   display: flex;
@@ -1317,7 +1317,7 @@ body {
   position: absolute !important;
   inset: 0 !important;
   width: 100% !important;
-  height: 100% !important;
+  /* height: 100% !important; */
   margin: 0 !important;
   border-radius: 0 !important;
   border: none !important;

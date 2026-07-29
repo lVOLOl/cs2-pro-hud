@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Player Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  width:100vw;height:100vh;overflow:hidden;
+  background:#070B14;
+  font-family:'Outfit',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+#bg_canvas{
+  position:fixed;inset:0;z-index:0;
+  width:100vw;height:100vh;display:block;
+}
+
+/* ── Main card layout ── */
+.card{
+  position:fixed;inset:0;z-index:1;
+  display:flex;flex-direction:column;
+  padding:clamp(14px,3vw,36px);
+  gap:clamp(10px,2vh,22px);
+}
+
+/* ── Top bar: tournament left, score+timer+map right ── */
+.card__top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  flex-shrink:0;gap:12px;
+}
+
+.tournament{
+  display:flex; flex-direction: column; gap: 15px;
+}
+.t-line{
+  display:block;
+  font-family:'Oswald',sans-serif;
+  letter-spacing:.06em;line-height:1.05;color:#fff;
+}
+.t-line--1{font-size:clamp(18px,4.5vw,56px);font-weight:700;}
+.t-line--2{font-size:clamp(14px,2.6vw,44px);font-weight:600;color:rgba(255,255,255,.7);}
+
+.top-right{
+  display:flex;flex-direction:column;align-items:flex-end;
+  gap:clamp(2px,2vh,15px);flex-shrink:0;
+}
+.score{
+  display:flex;align-items:center;gap:clamp(3px,1vw,8px);
+}
+.score-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(18px,5.5vw,48px);letter-spacing:.04em;line-height:1;
+  padding:clamp(1px,.3vh,3px) clamp(5px,1.3vw,11px);border-radius:4px;
+}
+.score-num--ct{color:#3b82f6;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);}
+.score-num--t {color:#fecd06;background:rgba(254,205,6,.12); border:1px solid rgba(254,205,6,.25);}
+.score-sep{font-family:'Bebas Neue',sans-serif;font-size:clamp(12px,3.5vw,30px);color:rgba(255,255,255,.25);}
+
+.round-timer{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(18px,5.5vw,48px);letter-spacing:.08em;line-height:1;
+  color:#fff;text-align:right;transition:color .25s;
+}
+.round-timer.bomb  {color:#ef4444;text-shadow:0 0 18px rgba(239,68,68,.7);animation:bombPulse 1s ease-in-out infinite;}
+.round-timer.freeze{color:rgba(255,255,255,.38);}
+.round-timer.warmup{font-size:clamp(8px,2.2vw,18px);color:rgba(255,255,255,.22);letter-spacing:.2em;}
+.round-timer.hidden{display:none;}
+@keyframes bombPulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+.map-pill{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(9px,2.3vw,32px);letter-spacing:.14em;
+  color:rgba(255,255,255,.62);
+  border:1px solid rgba(50,66,168,.4);background:rgba(50,66,168,.1);
+  padding:clamp(1px,.4vh,4px) clamp(5px,1.3vw,11px);border-radius:4px;white-space:nowrap;
+}
+
+/* ── Main area: webcam left + info right ── */
+.card__main{
+  flex:1;min-height:0;
+  display:flex;align-items:center;
+  gap:clamp(16px,3.5vw,44px);
+}
+
+/* Webcam column: 45% width, 16:9 aspect ratio */
+.webcam-col{
+  width:55%;flex-shrink:0;
+  display:flex;flex-direction:column;justify-content:center;
+}
+.webcam-box{
+  position:relative;
+  width:100%;
+  padding-top:56.25%; /* 16:9 */
+  border-radius:clamp(6px,1.2vw,14px);
+  overflow:hidden;
+  border:1px solid rgba(50,66,168,.35);
+  background:rgba(7,11,20,.55);
+  box-shadow:0 0 0 1px rgba(255,255,255,.04),
+             0 0 30px rgba(50,66,168,.2),
+             0 8px 40px rgba(0,0,0,.65);
+}
+.webcam-box__frame,
+.webcam-box__avatar{
+  position:absolute;inset:0;width:100%;height:100%;
+}
+.webcam-box__frame{border:none;display:none;}
+.webcam-box__avatar{object-fit:cover;display:none;}
+.webcam-box.has-webcam .webcam-box__frame {display:block;}
+.webcam-box.has-avatar  .webcam-box__avatar{display:block;}
+
+/* When no media, show waiting slot label inside box */
+.webcam-box__slot{
+  position:absolute;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(18px,5vw,42px);letter-spacing:.14em;
+  color:rgba(255,255,255,.1);
+}
+
+/* Info column: remaining space */
+.info-col{
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;
+  justify-content:center;
+  gap:clamp(6px,1.5vh,18px);
+}
+
+.player-name{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(28px,6.5vw,72px);letter-spacing:.04em;
+  color:#fff;line-height:.92;
+  text-shadow:0 4px 24px rgba(0,0,0,.7);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+
+/* KAD */
+.kad{display:flex;align-items:center;gap:clamp(5px,1.5vw,16px);}
+.kad-item{display:flex;align-items:baseline;gap:clamp(2px,.6vw,5px);}
+.kad-val{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(20px,5.5vw,60px);letter-spacing:.04em;line-height:1;
+}
+.kad-val--k{color:#22c55e;}
+.kad-val--a{color:#f59e0b;}
+.kad-val--d{color:#ef4444;}
+.kad-lbl{
+  font-size:clamp(15px,1.8vw,25px);font-weight:700;
+  letter-spacing:.12em;color:rgba(255,255,255,.7);text-transform:uppercase;
+}
+.kad-sep{font-size:clamp(14px,4vw,40px);color:rgba(255,255,255,.14);}
+
+/* Faceit */
+.faceit{display:flex;flex-direction:column;gap:clamp(3px,2vh,24px);}
+.faceit-row{display:flex;align-items:center;gap:clamp(4px,1.1vw,10px);}
+.faceit-icon{
+  height:clamp(18px,4.5vw,60px);width:auto;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));flex-shrink:0;
+}
+.faceit-icon.hidden{display:none;}
+.faceit-role-icon{
+  height:clamp(16px,4vw,60px);width:auto;
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.5));flex-shrink:0;
+}
+.faceit-role-icon.hidden{display:none;}
+.faceit-elo{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(14px,3.5vw,45px);letter-spacing:.06em;
+  color:rgba(255,255,255,.62);line-height:1;
+  justify-content:center;align-items:center;display:flex; gap:clamp(4px,1.1vw,10px);
+}
+.faceit-elo .n{color:#fff;}
+.faceit-role-name{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(12px,3vw,45px);letter-spacing:.1em;
+  color:rgba(255,255,255,.75);line-height:1;
+}
+
+/* Divider line in info col */
+.info-divider{
+  width:100%;height:1px;
+  background:linear-gradient(90deg,rgba(50,66,168,.5) 0%,rgba(50,66,168,.15) 60%,transparent 100%);
+  flex-shrink:0;
+}
+
+</style>
+</head>
+<body>
+
+<canvas id="bg_canvas"></canvas>
+
+<div class="card">
+
+  <!-- Top bar -->
+  <div class="card__top">
+    <div class="tournament">
+      <span class="t-line t-line--1" id="t_line1"></span>
+      <span class="t-line t-line--2" id="t_line2"></span>
+    </div>
+    <div class="top-right">
+      <div class="score">
+        <span class="score-num score-num--ct" id="score_ct">0</span>
+        <span class="score-sep">:</span>
+        <span class="score-num score-num--t"  id="score_t">0</span>
+      </div>
+      <div class="round-timer hidden" id="round_timer">—</div>
+      <div class="map-pill" id="map_name">—</div>
+    </div>
+  </div>
+
+  <!-- Main: webcam (45%) + info -->
+  <div class="card__main">
+
+    <div class="webcam-col">
+      <div class="webcam-box" id="webcam_box">
+        <iframe class="webcam-box__frame"  id="webcam_frame" allow="camera;microphone" allowfullscreen></iframe>
+        <img    class="webcam-box__avatar" id="avatar_img"   alt="">
+        <div class="webcam-box__slot" id="slot_label"></div>
+      </div>
+    </div>
+
+    <div class="info-col">
+      <div class="player-name" id="player_name">—</div>
+
+      <div class="info-divider"></div>
+
+      <div class="kad">
+        <div class="kad-item"><span class="kad-val kad-val--k" id="stat_k">0</span><span class="kad-lbl">K</span></div>
+        <span class="kad-sep">/</span>
+        <div class="kad-item"><span class="kad-val kad-val--a" id="stat_a">0</span><span class="kad-lbl">A</span></div>
+        <span class="kad-sep">/</span>
+        <div class="kad-item"><span class="kad-val kad-val--d" id="stat_d">0</span><span class="kad-lbl">D</span></div>
+      </div>
+
+      <div class="faceit" id="faceit_row">
+        <div class="faceit-row">
+          <img class="faceit-icon" id="faceit_icon" alt="" onerror="this.classList.add('hidden')">
+          <span class="faceit-elo" id="faceit_elo"></span>
+        </div>
+        <div class="faceit-row" id="faceit_role_row">
+          <img class="faceit-role-icon" id="faceit_role_icon" alt="" onerror="this.classList.add('hidden')">
+          <span class="faceit-role-name" id="faceit_role_name"></span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+// ── Canvas background ─────────────────────────────────────────────────────────
+;(function () {
+  const cv  = document.getElementById('bg_canvas')
+  const ctx = cv.getContext('2d')
+  let W, H, dpr
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1
+    W = cv.width  = Math.round(window.innerWidth  * dpr)
+    H = cv.height = Math.round(window.innerHeight * dpr)
+  }
+  resize(); window.addEventListener('resize', resize)
+
+  const ORBS = [
+    { bx:.15, by:.15, ax:.22, ay:.28, fx:.00082, fy:.00113, px:0.00, py:0.00, rad:.52, r:50, g:66,  b:168, a:.56 },
+    { bx:.85, by:.80, ax:.24, ay:.18, fx:.00064, fy:.00089, px:2.10, py:1.30, rad:.46, r:50, g:66,  b:168, a:.52 },
+    { bx:.50, by:.45, ax:.32, ay:.36, fx:.00097, fy:.00073, px:4.20, py:3.50, rad:.38, r:21, g:36,  b:100, a:.48 },
+    { bx:.10, by:.75, ax:.18, ay:.15, fx:.00075, fy:.00101, px:1.00, py:5.00, rad:.44, r:50, g:66,  b:168, a:.40 },
+    { bx:.88, by:.22, ax:.23, ay:.27, fx:.00059, fy:.00094, px:3.30, py:2.10, rad:.34, r:21, g:36,  b:100, a:.38 },
+  ]
+  function drawOrbs(t) {
+    for (const o of ORBS) {
+      const x = (o.bx + Math.sin(t * o.fx + o.px) * o.ax) * W
+      const y = (o.by + Math.sin(t * o.fy + o.py) * o.ay) * H
+      const r = o.rad * Math.min(W, H) * .68
+      const g = ctx.createRadialGradient(x,y,0,x,y,r)
+      g.addColorStop(0,    `rgba(${o.r},${o.g},${o.b},${o.a})`)
+      g.addColorStop(0.42, `rgba(${o.r},${o.g},${o.b},${+(o.a*.28).toFixed(3)})`)
+      g.addColorStop(1,    `rgba(${o.r},${o.g},${o.b},0)`)
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill()
+    }
+  }
+
+  function mkP(sc) {
+    const bright = Math.random() > .5
+    return { x: Math.random()*W, y: sc ? Math.random()*H : H+10,
+      vx:(Math.random()-.5)*.55*dpr, vy:-(Math.random()*.95+.25)*dpr,
+      r:(Math.random()*2.2+.4)*dpr, a:Math.random()*.7+.15,
+      da:Math.random()*.0028+.0008,
+      r8:bright?95:50, g8:bright?120:66, b8:bright?240:168 }
+  }
+  const PARTS = Array.from({length:65},()=>mkP(true))
+  function drawParticles() {
+    for (const p of PARTS) {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2)
+      ctx.fillStyle=`rgba(${p.r8},${p.g8},${p.b8},${p.a.toFixed(3)})`; ctx.fill()
+      p.x+=p.vx; p.y+=p.vy; p.a-=p.da
+      if (p.y<-20||p.a<=0) Object.assign(p,mkP(false))
+    }
+  }
+
+  const streaks=[]; let nextSF=200+Math.random()*220
+  function mkS(){return{f:0,dur:80+Math.random()*70,x:(.05+Math.random()*.7)*W,a:.10+Math.random()*.09,w:(1.2+Math.random()*1.8)*dpr}}
+  function drawStreaks(fr) {
+    if(fr>=nextSF){streaks.push(mkS());nextSF=fr+480+Math.random()*400}
+    const d=Math.sqrt(W*W+H*H)
+    for(let i=streaks.length-1;i>=0;i--){
+      const s=streaks[i]; s.f++
+      if(s.f>s.dur){streaks.splice(i,1);continue}
+      const al=Math.sin(s.f/s.dur*Math.PI)*s.a
+      ctx.save(); ctx.translate(s.x,0); ctx.rotate(-Math.PI/5.8)
+      const sg=ctx.createLinearGradient(0,0,0,d)
+      sg.addColorStop(0,   `rgba(100,150,255,0)`)
+      sg.addColorStop(0.12,`rgba(100,150,255,${+(al*.45).toFixed(3)})`)
+      sg.addColorStop(0.5, `rgba(170,210,255,${+al.toFixed(3)})`)
+      sg.addColorStop(0.88,`rgba(100,150,255,${+(al*.45).toFixed(3)})`)
+      sg.addColorStop(1,   `rgba(100,150,255,0)`)
+      ctx.fillStyle=sg; ctx.fillRect(-s.w/2,-d*.05,s.w,d*1.1); ctx.restore()
+    }
+  }
+
+  let frame=0
+  function loop(ts){
+    frame++
+    ctx.fillStyle='#070B14'; ctx.fillRect(0,0,W,H)
+    drawOrbs(ts); drawParticles(); drawStreaks(frame)
+    requestAnimationFrame(loop)
+  }
+  requestAnimationFrame(loop)
+})()
+
+// ── Slot + config ─────────────────────────────────────────────────────────────
+const SLOT    = (() => { const p=window.location.pathname.split('/').filter(Boolean); return parseInt(p[p.length-1])||1 })()
+const OBS_SLOT = SLOT===10 ? 0 : SLOT
+
+document.title = 'Player Card #' + SLOT
+document.getElementById('slot_label').textContent = 'SLOT ' + SLOT
+
+const MAP_SHORT = {
+  de_dust2:'DUST2',de_mirage:'MIRAGE',de_inferno:'INFERNO',de_overpass:'OVERPASS',
+  de_vertigo:'VERTIGO',de_ancient:'ANCIENT',de_anubis:'ANUBIS',de_nuke:'NUKE',de_cache:'CACHE',
+}
+
+let config       = {tournament:['',''],players:{}}
+let webcams      = {}
+let vetoMaps     = []
+let lastState    = null
+let curWebcamUrl = null
+let curSteamid   = null
+
+// ── Round timer ───────────────────────────────────────────────────────────────
+let _timerEnd   = 0
+let _timerPhase = ''
+
+function syncTimer(phase, secLeft) {
+  _timerPhase = phase
+  if (secLeft > 0) _timerEnd = Date.now() + secLeft * 1000
+}
+
+function fmtTime(sec) {
+  const s = Math.max(0, Math.ceil(sec))
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')
+}
+
+setInterval(() => {
+  const el = document.getElementById('round_timer')
+  if (!el) return
+  const rem = Math.max(0, (_timerEnd - Date.now()) / 1000)
+
+  if (!_timerPhase || _timerPhase === 'gameover') {
+    el.className = 'round-timer hidden'; return
+  }
+  if (_timerPhase === 'warmup') {
+    el.textContent = 'WARMUP'; el.className = 'round-timer warmup'; return
+  }
+  el.textContent = fmtTime(rem)
+  if (_timerPhase === 'planted' || _timerPhase === 'defusing') el.className = 'round-timer bomb'
+  else if (_timerPhase === 'freezetime') el.className = 'round-timer freeze'
+  else el.className = 'round-timer'
+}, 50)
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function eloToLevel(e) {
+  if (!e||e<=0) return 0
+  if (e<=500)return 1;if(e<=750)return 2;if(e<=900)return 3;if(e<=1050)return 4;
+  if (e<=1200)return 5;if(e<=1350)return 6;if(e<=1530)return 7;if(e<=1750)return 8;
+  if (e<=2000)return 9;return 10
+}
+function getMapDisplay() {
+  const a = vetoMaps.find(m=>m.status==='active')
+  if (a) return MAP_SHORT[a.name]||a.name.replace('de_','').toUpperCase()
+  if (lastState?.map?.name) { const n=lastState.map.name; return MAP_SHORT[n]||n.replace('de_','').toUpperCase() }
+  return ''
+}
+function findPlayer(state) {
+  const fixedSid = config.slots?.[String(SLOT)]
+  if (fixedSid && state.allplayers?.[fixedSid]) {
+    return { steamid: fixedSid, ...state.allplayers[fixedSid] }
+  }
+  for (const [sid,p] of Object.entries(state.allplayers||{})) {
+    if (p.observer_slot===OBS_SLOT) return {steamid:sid,...p}
+  }
+  return null
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+function update(state) {
+  lastState = state
+
+  document.getElementById('t_line1').textContent = config.tournament[0]||''
+  document.getElementById('t_line2').textContent = config.tournament[1]||''
+  document.getElementById('map_name').textContent = getMapDisplay()||'—'
+  document.getElementById('score_ct').textContent = state.map?.team_ct?.score ?? 0
+  document.getElementById('score_t').textContent  = state.map?.team_t?.score  ?? 0
+
+  const roundPhase = state.round?.phase||''
+  const timeLeft   = parseFloat(state.phase_countdowns?.phase_ends_in ?? 0)
+  syncTimer(roundPhase, timeLeft)
+
+  const player = findPlayer(state)
+  const slotLbl = document.getElementById('slot_label')
+
+  if (!player) {
+    slotLbl.style.display = 'flex'
+    document.getElementById('player_name').textContent = '—'
+    document.getElementById('stat_k').textContent = '0'
+    document.getElementById('stat_a').textContent = '0'
+    document.getElementById('stat_d').textContent = '0'
+    document.getElementById('faceit_row').style.display = 'none'
+    return
+  }
+  slotLbl.style.display = 'none'
+
+  document.getElementById('player_name').textContent = player.name||''
+  document.getElementById('stat_k').textContent = player.match_stats?.kills   ?? 0
+  document.getElementById('stat_a').textContent = player.match_stats?.assists ?? 0
+  document.getElementById('stat_d').textContent = player.match_stats?.deaths  ?? 0
+
+  const pData = config.players?.[player.steamid] || {}
+  const elo   = parseInt(pData.elo) || 0
+  const level = eloToLevel(elo)
+  const role  = (pData.role || '').trim()
+  const fRow  = document.getElementById('faceit_row')
+
+  if (elo > 0 || role) {
+    // Row 1: level icon + ELO
+    const iconEl = document.getElementById('faceit_icon')
+    if (level > 0) { iconEl.src = `/assets/faceit/level_${level}.png`; iconEl.classList.remove('hidden') }
+    else            { iconEl.src = ''; iconEl.classList.add('hidden') }
+    const eloEl = document.getElementById('faceit_elo')
+    eloEl.innerHTML = elo > 0 ? `<span class="n">${elo}</span> ELO` : ''
+
+    // Row 2: role icon + role name
+    const roleRow  = document.getElementById('faceit_role_row')
+    const roleIcon = document.getElementById('faceit_role_icon')
+    const roleName = document.getElementById('faceit_role_name')
+    if (role) {
+      roleIcon.src = `/assets/faceit/${role.toLowerCase()}.svg`
+      roleIcon.classList.remove('hidden')
+      roleName.textContent = role
+      roleRow.style.display = 'flex'
+    } else {
+      roleRow.style.display = 'none'
+    }
+
+    fRow.style.display = 'flex'
+  } else { fRow.style.display = 'none' }
+
+  const webcamUrl = webcams[player.steamid]||null
+  const box       = document.getElementById('webcam_box')
+  if (webcamUrl!==curWebcamUrl||player.steamid!==curSteamid) {
+    curWebcamUrl=webcamUrl; curSteamid=player.steamid
+    if (webcamUrl) {
+      document.getElementById('webcam_frame').src=webcamUrl
+      box.className='webcam-box has-webcam'
+    } else {
+      document.getElementById('webcam_frame').src=''
+      document.getElementById('avatar_img').src=`/avatar/${player.steamid}`
+      box.className='webcam-box has-avatar'
+    }
+  }
+}
+
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+const socket = io()
+socket.on('state',        s => update(s))
+socket.on('veto',         d => { vetoMaps=d.maps||[]; if(lastState)update(lastState) })
+socket.on('player-cards', d => { config=d;            if(lastState)update(lastState) })
+socket.on('webcams',      d => { webcams=d;            if(lastState)update(lastState) })
+
+;(async()=>{
+  try {
+    const [c,w] = await Promise.all([
+      fetch('/api/player-cards').then(r=>r.json()),
+      fetch('/api/webcams').then(r=>r.json()),
+    ])
+    config=c; webcams=w
+  } catch {}
+})()
+</script>
+</body>
+</html>

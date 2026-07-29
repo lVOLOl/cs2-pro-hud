@@ -160,10 +160,10 @@
     align-items: center;
   }
   .text-input {
-    background: rgba(255,255,255,0.05);
+    /* background: rgba(255,255,255,0.05); */
     border: 1px solid var(--border);
     border-radius: 6px;
-    color: var(--text);
+    /* color: var(--text); */
     font-family: "Outfit", sans-serif;
     font-size: 13px;
     padding: 8px 12px;
@@ -275,6 +275,113 @@
   </p>
 </div>
 
+<!-- ── TEAM LOGOS ─────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Team Logos</div>
+
+  <!-- Upload -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:10px">Загрузить логотип</div>
+    <div style="display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center">
+      <input class="text-input" id="logo_team_name" placeholder="Название команды (как в CS2)">
+      <label style="cursor:pointer">
+        <span class="btn-save" style="display:inline-block">Выбрать файл</span>
+        <input type="file" id="logo_file_input" accept="image/*" style="display:none" onchange="onLogoFileSelected()">
+      </label>
+      <button class="btn-save" onclick="uploadLogo()" id="logo_upload_btn" style="background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.3);color:#3b82f6">Загрузить</button>
+    </div>
+    <div id="logo_preview_wrap" style="margin-top:10px;display:none;align-items:center;gap:12px">
+      <img id="logo_preview_img" style="height:48px;width:auto;border-radius:4px;background:rgba(255,255,255,.05);padding:4px" alt="">
+      <span id="logo_preview_name" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+  </div>
+
+  <!-- CT / T logo assignment -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:12px">Назначить логотипы на стороны</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">CT сторона</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <img id="ct_logo_preview" style="height:36px;width:36px;object-fit:contain;background:rgba(255,255,255,.05);border-radius:4px;display:none" alt="">
+          <select class="text-input" id="ct_logo_select" style="flex:1" onchange="onLogoSelectChange('ct')">
+            <option value="">— без логотипа —</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px">T сторона</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <img id="t_logo_preview" style="height:36px;width:36px;object-fit:contain;background:rgba(255,255,255,.05);border-radius:4px;display:none" alt="">
+          <select class="text-input" id="t_logo_select" style="flex:1" onchange="onLogoSelectChange('t')">
+            <option value="">— без логотипа —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <button class="btn-save" onclick="saveTeamLogos()">Сохранить</button>
+  </div>
+
+  <!-- Uploaded logos list -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:10px">Загруженные логотипы</div>
+    <div id="logos_grid" style="display:flex;flex-wrap:wrap;gap:10px">
+      <span style="font-size:12px;color:var(--muted)">Нет загруженных логотипов</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── PLAYER CARDS ──────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Player Cards</div>
+
+  <!-- OBS URLs -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;margin-bottom:12px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Ссылки для OBS Browser Source</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px" id="pc_urls"></div>
+  </div>
+
+  <!-- Slot assignments -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:4px">Привязка слотов → игроки</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Фиксирует какой игрок на каком слоте — не меняется после смены сторон</div>
+    <div style="display:flex;flex-direction:column;gap:0" id="slot_rows"></div>
+    <div style="display:flex;justify-content:flex-end;margin-top:10px">
+      <button class="btn-save" onclick="saveSlots()">Сохранить все слоты</button>
+    </div>
+  </div>
+
+  <!-- Tournament name -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:10px">Название турнира</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:12px;color:var(--muted);min-width:60px">Строка 1</span>
+        <input class="text-input" id="tournament_line1" placeholder="CS2 CHAMPIONSHIP"
+               style="flex:1;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.08em">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <span style="font-size:12px;color:var(--muted);min-width:60px">Строка 2</span>
+        <input class="text-input" id="tournament_line2" placeholder="SEASON 1 · FINALS"
+               style="flex:1;font-family:'Bebas Neue',sans-serif;font-size:15px;letter-spacing:.08em">
+      </div>
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn-save" onclick="saveTournament()">Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Faceit ELO by SteamID -->
+  <div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:6px">Faceit ELO</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:12px">
+      Иконки уровней: <code style="color:rgba(255,255,255,.45);font-size:10px">hud/assets/faceit/level_1.png</code> … <code style="color:rgba(255,255,255,.45);font-size:10px">level_10.png</code>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0" id="faceit_rows"></div>
+    <button class="btn-save" onclick="addEloRow()" style="margin-top:10px">+ Добавить</button>
+  </div>
+</div>
+
 <div class="status-bar" id="status_bar"></div>
 
 <style>
@@ -317,6 +424,8 @@ const ORIGIN = window.location.origin
 let webcams = {}
 let players = []
 let statusTimeout = null
+let playersBySlot = {}
+let playerCardsData = { tournament: ['', ''], players: {} }
 
 function showStatus(msg, type = "ok") {
   const el = document.getElementById("status_bar")
@@ -334,7 +443,12 @@ async function loadWebcams() {
 async function loadPlayers() {
   const res = await fetch("/api/players")
   players = await res.json()
+  playersBySlot = {}
+  for (const p of players) {
+    if (p.observer_slot != null) playersBySlot[p.observer_slot] = p
+  }
   renderPlayers()
+  renderFaceitRows()
 }
 
 function renderPlayers() {
@@ -610,6 +724,318 @@ async function saveSteamKey() {
   }
 }
 
+// ── Player Cards ─────────────────────────────────────────────────────────────
+function renderPcUrls() {
+  const el = document.getElementById('pc_urls')
+  if (!el) return
+  el.innerHTML = ''
+  for (let i = 1; i <= 10; i++) {
+    const a = document.createElement('a')
+    a.href = `/player/${i}`
+    a.target = '_blank'
+    a.style.cssText = 'font-size:12px;color:var(--ct);text-decoration:none;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:4px;padding:3px 8px;font-family:monospace'
+    a.textContent = `/player/${i}`
+    el.appendChild(a)
+  }
+}
+
+function renderFaceitRows() {
+  const el = document.getElementById('faceit_rows')
+  if (!el) return
+  el.innerHTML = ''
+
+  const saved = playerCardsData.players || {}
+
+  // Build name lookup from current game players (steamid → name)
+  const nameByID = {}
+  for (const p of players) nameByID[p.steamid] = p.name
+
+  Object.entries(saved).forEach(([sid, data]) => {
+    const name = nameByID[sid] || ''
+    _appendEloRow(el, sid, data, name)
+  })
+}
+
+function _appendEloRow(container, sid, data, hint) {
+  const elo  = data.elo  || ''
+  const role = data.role || ''
+
+  const card = document.createElement('div')
+  card.style.cssText = 'background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05);border-radius:6px;padding:10px 12px;margin-bottom:6px'
+  card.dataset.sid = sid
+  card.innerHTML = `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+      <input class="text-input" placeholder="SteamID64 (76561...)" value="${escHtml(sid)}"
+             style="font-family:monospace;font-size:12px;flex:1" data-role="sid">
+      <button class="btn-save" onclick="saveEloRow(this)">Сохранить</button>
+      <button class="btn-clear" onclick="deleteEloRow(this)" title="Удалить">✕</button>
+    </div>
+    ${hint ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">${escHtml(hint)}</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 90px;gap:8px">
+      <input class="text-input" placeholder="Роль — имя файла иконки (awp, igl, entry...)"
+             value="${escHtml(role)}" style="font-size:13px" data-role="role">
+      <input class="text-input" type="number" min="0" max="5000" value="${elo}"
+             placeholder="ELO" style="font-size:13px" data-role="elo">
+    </div>
+  `
+  container.appendChild(card)
+}
+
+function addEloRow() {
+  const el = document.getElementById('faceit_rows')
+  _appendEloRow(el, '', {}, '')
+  el.lastElementChild.querySelector('[data-role="sid"]').focus()
+}
+
+async function saveEloRow(btn) {
+  const card   = btn.closest('[data-sid]')
+  const sid    = card.querySelector('[data-role="sid"]').value.trim()
+  const elo    = parseInt(card.querySelector('[data-role="elo"]').value) || 0
+  const role   = card.querySelector('[data-role="role"]').value.trim()
+  if (!sid) { showStatus('Введите SteamID', 'error'); return }
+
+  const oldSid = card.dataset.sid
+
+  if (!playerCardsData.players) playerCardsData.players = {}
+
+  if (oldSid && oldSid !== sid) {
+    delete playerCardsData.players[oldSid]
+    await fetch('/api/player-cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ players: { [oldSid]: null } })
+    })
+  }
+
+  playerCardsData.players[sid] = { elo, role }
+  card.dataset.sid = sid
+
+  await fetch('/api/player-cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ players: { [sid]: { elo, role } } })
+  })
+  showStatus(`${sid.slice(-6)}: ${elo} ELO · ${role || '—'}`)
+  btn.classList.add('ok'); setTimeout(() => btn.classList.remove('ok'), 1200)
+}
+
+async function deleteEloRow(btn) {
+  const row = btn.closest('[data-sid]')
+  const sid = row.dataset.sid
+  if (sid && playerCardsData.players?.[sid]) {
+    delete playerCardsData.players[sid]
+    await fetch('/api/player-cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ players: { [sid]: null } })
+    })
+  }
+  row.remove()
+}
+
+async function loadPlayerCards() {
+  try {
+    const r = await fetch('/api/player-cards')
+    playerCardsData = await r.json()
+    document.getElementById('tournament_line1').value = playerCardsData.tournament?.[0] || ''
+    document.getElementById('tournament_line2').value = playerCardsData.tournament?.[1] || ''
+    renderFaceitRows()
+    renderSlotRows()
+  } catch {}
+}
+
+function renderSlotRows() {
+  const el = document.getElementById('slot_rows')
+  if (!el) return
+  el.innerHTML = ''
+
+  // Build name lookup from both in-game players and known players in config
+  const nameByID = {}
+  for (const p of players) nameByID[p.steamid] = p.name
+  // Known players from config (steamid → elo/role but we need a name hint)
+  // Use steamid short as fallback
+
+  const knownSids = Object.keys(playerCardsData.players || {})
+  const slots = playerCardsData.slots || {}
+
+  for (let slot = 1; slot <= 10; slot++) {
+    const savedSid = slots[String(slot)] || ''
+    const hint = savedSid ? (nameByID[savedSid] || savedSid.slice(-8)) : ''
+
+    // Build options for select
+    const optionItems = [{ sid: '', label: '— не задан —' }]
+    knownSids.forEach(sid => {
+      optionItems.push({ sid, label: nameByID[sid] ? `${nameByID[sid]} (…${sid.slice(-6)})` : `…${sid.slice(-6)}` })
+    })
+    // Also add in-game players not in known list
+    players.forEach(p => {
+      if (!knownSids.includes(p.steamid)) {
+        optionItems.push({ sid: p.steamid, label: `${p.name} (…${p.steamid.slice(-6)})` })
+      }
+    })
+
+    const opts = optionItems.map(o =>
+      `<option value="${escHtml(o.sid)}" ${o.sid===savedSid?'selected':''}>${escHtml(o.label)}</option>`
+    ).join('')
+
+    const row = document.createElement('div')
+    row.style.cssText = 'display:grid;grid-template-columns:72px 1fr;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04)'
+    row.innerHTML = `
+      <span style="font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.08em;color:var(--muted)">Слот ${slot}</span>
+      <select class="text-input" id="slot_sel_${slot}" style="font-size:13px">${opts}</select>
+    `
+    el.appendChild(row)
+  }
+}
+
+async function saveSlots() {
+  const slots = {}
+  for (let i = 1; i <= 10; i++) {
+    const sel = document.getElementById(`slot_sel_${i}`)
+    if (sel) slots[String(i)] = sel.value
+  }
+  if (!playerCardsData.slots) playerCardsData.slots = {}
+  playerCardsData.slots = slots
+  await fetch('/api/player-cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slots })
+  })
+  showStatus('Слоты сохранены')
+}
+
+async function saveTournament() {
+  const line1 = document.getElementById('tournament_line1').value.trim()
+  const line2 = document.getElementById('tournament_line2').value.trim()
+  playerCardsData.tournament = [line1, line2]
+  await fetch('/api/player-cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tournament: [line1, line2] })
+  })
+  showStatus('Турнир сохранён')
+}
+
+// ── Team Logos ────────────────────────────────────────────────────────────────
+let _logoFileData = null
+
+function onLogoFileSelected() {
+  const file = document.getElementById('logo_file_input').files[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = e => {
+    _logoFileData = e.target.result
+    const prev = document.getElementById('logo_preview_wrap')
+    document.getElementById('logo_preview_img').src = _logoFileData
+    document.getElementById('logo_preview_name').textContent = file.name
+    prev.style.display = 'flex'
+    // Auto-fill team name from filename if empty
+    const nameEl = document.getElementById('logo_team_name')
+    if (!nameEl.value.trim()) {
+      nameEl.value = file.name.replace(/\.[^.]+$/, '').replace(/_/g, ' ')
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+async function uploadLogo() {
+  const name = document.getElementById('logo_team_name').value.trim()
+  if (!name) { showStatus('Введите название команды', 'error'); return }
+  if (!_logoFileData) { showStatus('Выберите файл', 'error'); return }
+  const btn = document.getElementById('logo_upload_btn')
+  btn.classList.add('saving')
+  const res = await fetch('/api/logo', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, data: _logoFileData })
+  })
+  btn.classList.remove('saving')
+  if (res.ok) {
+    showStatus(`Логотип «${name}» загружен`)
+    document.getElementById('logo_team_name').value = ''
+    document.getElementById('logo_file_input').value = ''
+    document.getElementById('logo_preview_wrap').style.display = 'none'
+    _logoFileData = null
+    await loadLogos()
+  } else {
+    showStatus('Ошибка загрузки', 'error')
+  }
+}
+
+async function loadLogos() {
+  const grid = document.getElementById('logos_grid')
+  if (!grid) return
+  try {
+    const logos = await fetch('/api/logos').then(r => r.json())
+
+    // Populate CT/T selectors
+    const cards = await fetch('/api/player-cards').then(r => r.json()).catch(() => ({}))
+    const savedCt = cards.team_logos?.ct || ''
+    const savedT  = cards.team_logos?.t  || ''
+    for (const side of ['ct', 't']) {
+      const sel = document.getElementById(side + '_logo_select')
+      if (!sel) continue
+      const saved = side === 'ct' ? savedCt : savedT
+      sel.innerHTML = '<option value="">— без логотипа —</option>'
+      logos.forEach(({ file, name }) => {
+        const opt = document.createElement('option')
+        opt.value = file
+        opt.textContent = name
+        if (file === saved) opt.selected = true
+        sel.appendChild(opt)
+      })
+      onLogoSelectChange(side)
+    }
+
+    if (!logos.length) {
+      grid.innerHTML = '<span style="font-size:12px;color:var(--muted)">Нет загруженных логотипов</span>'
+      return
+    }
+    grid.innerHTML = ''
+    logos.forEach(({ file, name }) => {
+      const card = document.createElement('div')
+      card.style.cssText = 'display:flex;flex-direction:column;align-items:center;gap:6px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:6px;padding:10px 12px;min-width:90px'
+      card.innerHTML = `
+        <img src="/assets/teams/${encodeURIComponent(file)}?t=${Date.now()}"
+             style="height:48px;width:auto;max-width:80px;object-fit:contain;border-radius:3px" alt="${escHtml(name)}">
+        <span style="font-size:11px;color:var(--text);text-align:center;word-break:break-word;max-width:80px">${escHtml(name)}</span>
+        <button class="btn-clear" style="margin:0;font-size:10px;padding:2px 7px" onclick="deleteLogo('${escHtml(file)}')">✕</button>
+      `
+      grid.appendChild(card)
+    })
+  } catch { grid.innerHTML = '<span style="font-size:12px;color:var(--muted)">Ошибка загрузки</span>' }
+}
+
+async function deleteLogo(file) {
+  await fetch(`/api/logo/${encodeURIComponent(file)}`, { method: 'DELETE' })
+  showStatus(`Удалено: ${file}`)
+  await loadLogos()
+}
+
+function onLogoSelectChange(side) {
+  const sel = document.getElementById(side + '_logo_select')
+  const prev = document.getElementById(side + '_logo_preview')
+  const file = sel.value
+  if (file) {
+    prev.src = '/assets/teams/' + encodeURIComponent(file)
+    prev.style.display = 'block'
+  } else {
+    prev.style.display = 'none'
+  }
+}
+
+async function saveTeamLogos() {
+  const ct = document.getElementById('ct_logo_select').value
+  const t  = document.getElementById('t_logo_select').value
+  const res = await fetch('/api/player-cards', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ team_logos: { ct: ct || null, t: t || null } })
+  })
+  if (res.ok) showStatus('Логотипы сохранены')
+  else showStatus('Ошибка сохранения', 'error')
+}
+
 // ── Poll players every 3s ─────────────────────────────────────────────────────
 async function init() {
   await loadWebcams()
@@ -617,6 +1043,9 @@ async function init() {
   await loadVetoData()
   await loadSettings()
   await loadSteamKey()
+  await loadPlayerCards()
+  await loadLogos()
+  renderPcUrls()
   setInterval(async () => {
     await loadWebcams()
     await loadPlayers()

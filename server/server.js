@@ -34,6 +34,8 @@ io.on("connection", socket => {
   if (veto.maps && veto.maps.length > 0) socket.emit("veto", veto)
   socket.emit("settings", loadSettings())
   if (Object.keys(activeGrenades).length > 0) socket.emit("grenades", activeGrenades)
+  socket.emit("player-cards", loadPlayerCards())
+  socket.emit("webcams", loadWebcams())
 })
 
 let gameState = {}
@@ -266,7 +268,7 @@ function pruneCsharpKills() {
   }
 }
 
-app.use(bodyParser.json())
+app.use(bodyParser.json({ limit: "8mb" }))
 
 // Grenade tracker (CSSharp plugin → HUD minimap)
 app.post("/grenade", express.json(), (req, res) => {
@@ -572,8 +574,84 @@ app.get("/api/players", (req, res) => {
     steamid,
     name: p.name || steamid,
     team: p.team || "",
+    observer_slot: p.observer_slot ?? null,
   }))
   res.json(players)
+})
+
+// ── Player Cards ─────────────────────────────────────────────────────────────
+const PLAYER_CARDS_FILE = path.join(BASE_DIR, "player-cards.json")
+
+function loadPlayerCards() {
+  try { return JSON.parse(fs.readFileSync(PLAYER_CARDS_FILE, "utf8")) }
+  catch { return { tournament: ["", ""], players: {} } }
+}
+function savePlayerCards(data) {
+  fs.writeFileSync(PLAYER_CARDS_FILE, JSON.stringify(data, null, 2))
+}
+
+app.get("/player/:slot", (req, res) => {
+  const slot = parseInt(req.params.slot)
+  if (isNaN(slot) || slot < 1 || slot > 10) return res.status(404).send("Not found")
+  res.sendFile(path.join(BASE_DIR, "hud", "player-card.html"))
+})
+
+// ── Team Logos ────────────────────────────────────────────────────────────────
+const TEAMS_DIR = path.join(BASE_DIR, "hud", "assets", "teams")
+
+app.get("/api/logos", (req, res) => {
+  try {
+    const files = fs.readdirSync(TEAMS_DIR).filter(f => /\.(png|jpg|jpeg|svg|webp)$/i.test(f))
+    res.json(files.map(f => ({ file: f, name: f.replace(/\.[^.]+$/, "").replace(/_/g, " ") })))
+  } catch { res.json([]) }
+})
+
+app.post("/api/logo", (req, res) => {
+  const { name, data } = req.body || {}
+  if (!name || !data) return res.status(400).json({ error: "name and data required" })
+  const safe = String(name).replace(/[^a-zA-Z0-9а-яёА-ЯЁ _\-]/g, "").trim().replace(/\s+/g, "_")
+  if (!safe) return res.status(400).json({ error: "invalid name" })
+  const m = String(data).trim().match(/^data:image\/([a-zA-Z0-9+\-.]+);base64,([A-Za-z0-9+/=]+)$/)
+  if (!m) return res.status(400).json({ error: "invalid image data" })
+  const rawExt = m[1].replace(/\+.*$/, "")
+  const ext = rawExt === "jpeg" ? "jpg" : rawExt
+  const buf = Buffer.from(m[2], "base64")
+  if (!fs.existsSync(TEAMS_DIR)) fs.mkdirSync(TEAMS_DIR, { recursive: true })
+  const filePath = path.join(TEAMS_DIR, `${safe}.${ext}`)
+  fs.writeFileSync(filePath, buf)
+  io.emit("logos-updated")
+  res.json({ ok: true, file: `${safe}.${ext}` })
+})
+
+app.delete("/api/logo/:file", (req, res) => {
+  const file = path.basename(req.params.file)
+  const filePath = path.join(TEAMS_DIR, file)
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+  res.json({ ok: true })
+})
+
+app.get("/api/player-cards", (req, res) => res.json(loadPlayerCards()))
+
+app.post("/api/player-cards", express.json(), (req, res) => {
+  const { tournament, players, slots, team_logos } = req.body || {}
+  const current = loadPlayerCards()
+  if (Array.isArray(tournament)) current.tournament = tournament
+  if (players && typeof players === "object") {
+    current.players = { ...current.players, ...players }
+    for (const [k, v] of Object.entries(current.players)) {
+      if (v === null) delete current.players[k]
+    }
+  }
+  if (slots && typeof slots === "object") {
+    if (!current.slots) current.slots = {}
+    current.slots = { ...current.slots, ...slots }
+  }
+  if (team_logos && typeof team_logos === "object") {
+    current.team_logos = { ...(current.team_logos || {}), ...team_logos }
+  }
+  savePlayerCards(current)
+  io.emit("player-cards", current)
+  res.json({ ok: true })
 })
 
 app.use(express.static(path.join(BASE_DIR, "hud")))
