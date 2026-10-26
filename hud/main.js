@@ -91,6 +91,8 @@ socket.on("settings", settings => {
   _obsBroadcast = settings.obs_mode === "broadcast"
   _applyObsMode()
   if (typeof _showGrenades !== "undefined") _showGrenades = settings.show_grenades !== false
+  if (typeof setCardStyle === "function") setCardStyle(settings.card_style)
+  if (typeof infoPanelSetTeams === "function") infoPanelSetTeams(settings.teams)
 })
 
 socket.on("grenades", grenades => {
@@ -153,16 +155,21 @@ function normalizeGameState(data) {
   return {
     map: map ? {
       name: map.name || map.Name,
-      team_ct: ct ? { score: ct.score ?? map.score_ct, name: ct.name } : { score: 0, name: "" },
-      team_t: t ? { score: t.score ?? map.score_t, name: t.name } : { score: 0, name: "" },
+      phase: map.phase ?? map.Phase ?? "",
+      round: Number(map.round ?? map.Round ?? 0) || 0,
+      team_ct: ct ? { score: ct.score ?? map.score_ct, name: ct.name, series: Number(ct.matches_won_this_series) || 0 } : { score: 0, name: "", series: 0 },
+      team_t: t ? { score: t.score ?? map.score_t, name: t.name, series: Number(t.matches_won_this_series) || 0 } : { score: 0, name: "", series: 0 },
     } : null,
     allplayers,
     phase_countdowns: Object.keys(phase).length ? { phase: phase.phase ?? phase.Phase, phase_ends_in: phase.phase_ends_in ?? phase.Phase_ends_in } : null,
-    round: Object.keys(round).length ? { phase: pick(round, "phase", "Phase") } : null,
-    bomb: Object.keys(bomb).length ? { countdown: bomb.countdown ?? bomb.Countdown, position: bomb.position ?? bomb.Position, state: bomb.state ?? bomb.State, defuse_countdown: bomb.defuse_countdown ?? bomb.defuseCountdown } : null,
+    round: Object.keys(round).length ? { phase: pick(round, "phase", "Phase"), win_team: pick(round, "win_team", "Win_team") || null, bomb: pick(round, "bomb", "Bomb") || null } : null,
+    bomb: Object.keys(bomb).length ? { countdown: bomb.countdown ?? bomb.Countdown, position: bomb.position ?? bomb.Position, state: bomb.state ?? bomb.State, defuse_countdown: bomb.defuse_countdown ?? bomb.defuseCountdown, player: bomb.player ?? bomb.Player ?? null } : null,
     recent_kills: data.recent_kills,
     player: data.player || data.Player,
     fire_side: data.fire_side ?? null,
+    fire_streak: Number(data.fire_streak) || 0,
+    series: data.series && typeof data.series === "object" ? data.series : null,
+    side_logos: data.side_logos && typeof data.side_logos === "object" ? data.side_logos : null,
   }
 }
 
@@ -184,51 +191,11 @@ socket.on("veto", (data) => { renderVeto(data) })
 socket.on("logos-updated", () => { refreshLogoMap() })
 
 function renderVeto(veto) {
-  const bar    = document.getElementById("veto_bar")
-  const boEl   = document.getElementById("veto_bo")
-  const mapsEl = document.getElementById("veto_maps")
-  const outer  = document.getElementById("veto_scroll_outer")
-  const inner  = document.getElementById("veto_inner")
-  if (!bar || !mapsEl) return
-
   const maps = veto.maps || []
-  if (!maps.length) { bar.style.display = "none"; return }
-  bar.style.display = "flex"
-  if (boEl) boEl.textContent = veto.bo || "BO3"
-
-  mapsEl.innerHTML = ""
-  for (const m of maps) {
-    const name = MAP_SHORT[m.name] || (m.name || "").replace("de_", "").toUpperCase()
-    const logo = `assets/overviews/map_logo/${m.name}.png`
-    const status = m.status || "upcoming"
-
-    let scoreHtml = ""
-    if (status === "played" && m.score && m.score.length >= 2) {
-      scoreHtml = `<span class="veto-map__score">
-        <span class="veto-map__score-ct">${m.score[0]}</span>
-        <span class="veto-map__score-sep">:</span>
-        <span class="veto-map__score-t">${m.score[1]}</span>
-      </span>`
-    }
-
-    const div = document.createElement("div")
-    div.className = `veto-map veto-map--${status}`
-    div.innerHTML = `<img class="veto-map__logo" src="${logo}" alt="">
-      <span class="veto-map__name">${name}</span>${scoreHtml}`
-    mapsEl.appendChild(div)
-  }
-
-  // Apply scroll animation if content overflows
-  inner.classList.remove("veto-bar__inner--scroll")
-  inner.style.removeProperty("--veto-scroll-dist")
-  requestAnimationFrame(() => {
-    if (!outer || !inner) return
-    const overflow = inner.scrollWidth - outer.clientWidth
-    if (overflow > 4) {
-      inner.style.setProperty("--veto-scroll-dist", `-${overflow}px`)
-      inner.classList.add("veto-bar__inner--scroll")
-    }
-  })
+  _seriesBo = maps.length ? (veto.bo || "BO1") : "BO1"
+  if (lastState) updateScore(lastState)
+  // Отрисовка — панель над миникартой (hud/info-panel.js)
+  if (typeof infoPanelSetVeto === "function") infoPanelSetVeto(veto)
 }
 
 socket.on("state", (data) => {
@@ -246,9 +213,72 @@ socket.on("state", (data) => {
   updateMinimap(lastState)
   updateTeamGrenades(lastState)
   updateRoundStats(lastState)
+  if (typeof updateTopbarEvents === "function") updateTopbarEvents(lastState)
+  if (typeof infoPanelUpdate === "function") infoPanelUpdate(lastState)
 })
 
+// ── Серия (BO3/BO5): отсечки выигранных карт ─────────────────────────────────
+let _seriesBo = "BO1"          // из veto.json
+
+function _seriesNeed() {
+  const n = parseInt(String(_seriesBo).replace(/\D/g, ""), 10)
+  return n >= 2 ? Math.ceil(n / 2) : 0
+}
+
+function _renderSeries(elId, won, need, side) {
+  const el = document.getElementById(elId)
+  if (!el) return
+  const key = need + ":" + won
+  if (el.dataset.key === key) return
+  el.dataset.key = key
+  let html = ""
+  for (let i = 0; i < need; i++) html += `<span class="team__pip${i < won ? " team__pip--won" : ""}"></span>`
+  el.innerHTML = html
+  el.classList.toggle("team__series--on", need > 0)
+}
+
+function updateSeries(data) {
+  const need = _seriesNeed()
+  // Счёт серии считает сервер (по названиям команд): ручной → из игры → по вето
+  const src = data.series || {
+    ct: data.map?.team_ct?.series ?? 0,
+    t:  data.map?.team_t?.series  ?? 0,
+  }
+  const ctWon = Math.min(need, src.ct)
+  const tWon  = Math.min(need, src.t)
+  _renderSeries("ct_series", ctWon, need, "ct")
+  _renderSeries("t_series",  tWon,  need, "t")
+}
+
+// ── Номер раунда: "ROUND 15 / 24", в овертайме "OT1 · ROUND 27 / 30" ─────────
+const REG_ROUNDS = 24
+const OT_ROUNDS  = 6
+
+function updateRoundLabel(data) {
+  const el = document.getElementById("round_label")
+  if (!el || !data.map) return
+  const mapPhase   = data.map.phase || ""
+  const roundPhase = data.round?.phase || ""
+  let text
+  if (mapPhase === "warmup" || roundPhase === "warmup") text = "WARMUP"
+  else if (mapPhase === "intermission") text = "HALFTIME"
+  else if (mapPhase === "gameover") text = "FINAL"
+  else {
+    const played = data.map.round || 0
+    const r = played + (roundPhase === "over" ? 0 : 1)
+    if (r > REG_ROUNDS) {
+      const ot = Math.ceil((r - REG_ROUNDS) / OT_ROUNDS)
+      text = `OT${ot} · ROUND ${r} / ${REG_ROUNDS + OT_ROUNDS * ot}`
+    } else {
+      text = `ROUND ${Math.max(1, r)} / ${REG_ROUNDS}`
+    }
+  }
+  if (el.textContent !== text) el.textContent = text
+}
+
 function updateScore(data) {
+  updateSeries(data)
+  updateRoundLabel(data)
   if (!data.map) return
   const ct = data.map.team_ct
   const t = data.map.team_t
@@ -882,6 +912,7 @@ async function refreshLogoMap() {
 refreshLogoMap()
 
 socket.on("player-cards", (cards) => {
+  if (cards && typeof infoPanelSetTournament === "function") infoPanelSetTournament(cards.tournament)
   if (cards && cards.team_logos) {
     _teamLogos = { ct: cards.team_logos.ct || null, t: cards.team_logos.t || null }
     _lastCtName = null
@@ -890,15 +921,35 @@ socket.on("player-cards", (cards) => {
   }
 })
 
+// Логотип команды, определённой сервером по составу (блок «Команды» в админке).
+// Возвращает true, если сторона занята таким логотипом.
+function _applyLiveLogo(el, file) {
+  if (!el) return false
+  if (!file) {
+    if (el.dataset.live) { delete el.dataset.live; return "reset" }
+    return false
+  }
+  const src = "assets/teams/" + file
+  if (el.dataset.live !== src) {
+    el.dataset.live = src
+    el.onerror = () => { el.src = EMPTY_IMG }
+    el.src = src
+  }
+  return true
+}
+
 function updateTeamLogos(data) {
   if (!data.map) return
   const ct = data.map.team_ct
   const t  = data.map.team_t
   const ctName = ct?.name || null
   const tName  = t?.name  || null
+  const live = data.side_logos || {}
 
   const ctLogo = document.getElementById("ct_logo")
-  if (ctLogo && (ctName !== _lastCtName || _lastCtName === null)) {
+  const ctLive = _applyLiveLogo(ctLogo, live.ct)
+  if (ctLive === "reset") _lastCtName = null
+  if (ctLogo && ctLive !== true && (ctName !== _lastCtName || _lastCtName === null)) {
     _lastCtName = ctName
     ctLogo.onerror = () => { ctLogo.src = EMPTY_IMG }
     if (_teamLogos.ct) {
@@ -913,7 +964,9 @@ function updateTeamLogos(data) {
   }
 
   const tLogo = document.getElementById("t_logo")
-  if (tLogo && (tName !== _lastTName || _lastTName === null)) {
+  const tLive = _applyLiveLogo(tLogo, live.t)
+  if (tLive === "reset") _lastTName = null
+  if (tLogo && tLive !== true && (tName !== _lastTName || _lastTName === null)) {
     _lastTName = tName
     tLogo.onerror = () => { tLogo.src = EMPTY_IMG }
     if (_teamLogos.t) {

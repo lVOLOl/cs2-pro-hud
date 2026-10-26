@@ -121,6 +121,11 @@ body {
   color: var(--text);
 }
 
+/* Элементы компактного табло — в классике не участвуют */
+.team__score-col { display: contents; }
+.team__series,
+.topbar__round { display: none; }
+
 .topbar__center {
   display: flex;
   flex-direction: column;
@@ -748,88 +753,125 @@ body {
 }
 
 /* ========== VETO BAR ========== */
+/* Панель над миникартой: карты серии ⇄ название турнира (hud/info-panel.js) */
 .veto-bar {
+  position: relative;
   width: 350px;
+  height: 76px;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 6px 10px;
-  display: flex;
-  align-items: center;
-  gap: 5px;
   box-shadow: 0 4px 24px rgba(0,0,0,0.5);
   overflow: hidden;
 }
-.veto-bar__bo {
-  font-family: var(--font-display);
-  font-size: 20px;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  flex-shrink: 0;
-  line-height: 1;
-}
-.veto-bar__scroll-outer {
-  flex: 1;
-  overflow: hidden;
-  min-width: 0;
-}
-.veto-bar__inner {
+.veto-bar__view {
+  position: absolute;
+  inset: 0;
   display: flex;
-  gap: 2px;
-  width: max-content;
+  transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* .veto-bar__inner--scroll {
-  animation: vetoScroll 30s ease-in-out infinite;
-} */
-@keyframes vetoScroll {
-  0%, 15%  { transform: translateX(0); }
-  50%, 65% { transform: translateX(var(--veto-scroll-dist, 0px)); }
-  95%, 100%{ transform: translateX(0); }
-}
+.veto-bar--maps  .veto-bar__view--title,
+.veto-bar--title .veto-bar__view--maps { opacity: 0; pointer-events: none; }
+.veto-bar--maps  .veto-bar__view--title { transform: translateY(12px); }
+.veto-bar--title .veto-bar__view--maps  { transform: translateY(-12px); }
+
+/* Карты серии */
 .veto-bar__maps {
+  flex: 1;
   display: flex;
-  gap: 2px;
+  align-items: stretch;
 }
-.veto-map {
+.info-map {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
-  padding: 3px 5px;
-  border-radius: 5px;
-  min-width: 54px;
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 0 7px;
+  border-left: 1px solid var(--border);
 }
-.veto-map__logo {
-  width: 30px;
-  height: 30px;
-  object-fit: cover;
-  border-radius: 4px;
-  display: block;
-}
-.veto-map__name {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.info-map:first-child { border-left: 0; }
+.info-map__name {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--text);
   white-space: nowrap;
 }
-.veto-map__score {
+.info-map__logo {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.info-map__logo--map { border-radius: 4px; object-fit: cover; opacity: 0.55; }
+.info-map__text {
+  font-family: var(--font-display);
+  font-size: 16px;
+  line-height: 28px;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+}
+.info-map__text--decider { font-size: 12px; letter-spacing: 0.1em; }
+/* Нижняя строка ячейки: итоговый счёт сыгранной / живой счёт текущей */
+.info-map__foot {
   font-family: var(--font-display);
   font-size: 14px;
   line-height: 1;
+  height: 13px;
+  letter-spacing: 0.06em;
+  color: #fff;
+}
+/* Статусы — как в прежнем вето: текущая зелёная, сыгранная приглушённая, предстоящая обычная */
+.info-map--active { background: rgba(34, 197, 94, 0.14); box-shadow: inset 0 -2px 0 #22c55e; }
+.info-map--active .info-map__name { color: #22c55e; }
+.info-map--played .info-map__name { color: var(--text-muted); }
+.info-map--played .info-map__foot { color: rgba(255, 255, 255, 0.75); }
+.info-map--upcoming .info-map__name { color: var(--text); }
+.info-map--upcoming .info-map__logo { opacity: 0.8; }
+
+/* Название турнира и стадия матча */
+.veto-bar__view--title {
+  flex-direction: column;
+}
+.veto-bar__t1 {
+  flex: 0 0 26px;
   display: flex;
   align-items: center;
-  gap: 1px;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 10px;
 }
-.veto-map__score-ct  { color: var(--ct); }
-.veto-map__score-sep { color: var(--text-muted); font-size: 11px; margin: 0 1px; }
-.veto-map__score-t   { color: var(--t); }
-
-.veto-map--upcoming .veto-map__name { color: var(--text); }
-.veto-map--active   { background: rgba(34,197,94,0.12); }
-.veto-map--active   .veto-map__name { color: #22c55e; }
-.veto-map--played   .veto-map__logo { opacity: 0.45; filter: grayscale(0.7); }
-.veto-map--played   .veto-map__name { color: var(--text-muted); }
+.veto-bar__t2 {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 10px;
+}
+.veto-bar__t1:empty { display: none; }
+/* Bebas Neue без кириллицы — для названия турнира Oswald (кириллица + латиница одним шрифтом) */
+.veto-bar__t1, .veto-bar__t2 { font-family: "Oswald", var(--font-display); font-weight: 600; text-transform: uppercase; }
+.veto-bar__t1 { font-size: 13px; font-weight: 500; letter-spacing: 0.06em; }
+.veto-bar__t2 { font-size: 24px; letter-spacing: 0.04em; }
 
 /* ========== MINIMAP ========== */
 .minimap {
@@ -1413,3 +1455,556 @@ body {
   color: #fff;
 }
 
+
+/* ========== PLAYER CARDS — BLAST STYLE (body.cards--blast) ========== */
+.cards--blast .players {
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 4px;
+  bottom: 20px;
+}
+.cards--blast .players--ct { left: 24px; }
+.cards--blast .players--t  { right: 24px; }
+
+.bcard {
+  /* Палитра классического HUD */
+  --side: var(--ct);
+  --hp-grad: linear-gradient(90deg, #22c55e 0%, #3b82f6 100%);
+  width: 148px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  font-family: var(--font-body);
+  color: var(--text);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  transition: filter 0.5s ease, opacity 0.5s ease, transform 0.3s ease;
+}
+.bcard--t {
+  --side: var(--t);
+  --hp-grad: linear-gradient(90deg, #fecd06 0%, #f97316 100%);
+}
+/* Акцентная полоска стороны сверху, как player__accent в классике */
+/* .bcard::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--side) 0%, transparent 100%);
+  z-index: 5;
+} */
+
+/* Наблюдаемый игрок — белая рамка и приподнятая карточка */
+.bcard--observed { transform: translateY(-8px); }
+.bcard--observed::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Фото */
+.bcard__photo {
+  position: relative;
+  height: 96px;
+  background:
+    radial-gradient(120% 90% at 50% 100%, var(--side) 0%, transparent 70%),
+    var(--bg-dark);
+  overflow: hidden;
+}
+.bcard__avatar {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  object-position: center top;
+  transition: filter 0.5s ease;
+}
+.bcard__badges {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  gap: 3px;
+  z-index: 3;
+}
+/* Кит / бомба — квадратная плашка, иконка красится через mask */
+.bcard__badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+.bcard__badge-ico {
+  width: 16px;
+  height: 16px;
+  -webkit-mask: var(--ico) center / contain no-repeat;
+          mask: var(--ico) center / contain no-repeat;
+}
+.bcard__badge--kit { background: #e9edf2; }
+.bcard__badge--kit .bcard__badge-ico { --ico: url("assets/weapons/defuser.svg"); background: #16a34a; }
+.bcard__badge--bomb { background: #d61f2c; }
+.bcard__badge--bomb .bcard__badge-ico { --ico: url("assets/weapons/c4.svg"); background: #fff; }
+.bcard__badge--bomb.active { box-shadow: 0 0 0 1.5px #fff, 0 1px 3px rgba(0, 0, 0, 0.4); }
+.bcard__rk {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  z-index: 3;
+  background: #fff;
+  color: #000;
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 1;
+  padding: 2px 5px 0;
+  border-radius: 2px;
+}
+.bcard__rk span { font-size: 12px; margin-left: 1px; }
+
+/* Цветная плашка: слот, HP, ник. Цвет стороны заполняет плашку по HP */
+.bcard__head {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 5px 7px 5px 6px;
+  background: var(--bg-card);
+  border-top: 1px solid var(--border);
+  min-height: 48px;
+}
+.bcard__hpfill {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  background: var(--hp-grad);
+  opacity: 0.5;
+  transition: width 0.25s ease;
+  z-index: 0;
+}
+.bcard__slot,
+.bcard__head-right { position: relative; z-index: 1; }
+
+.bcard__slot {
+  align-self: flex-end;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  border: 2px solid var(--side);
+  border-radius: 2px;
+  background: var(--bg-dark);
+  font-family: var(--font-display);
+  font-size: 18px;
+  line-height: 20px;
+  text-align: center;
+}
+.bcard__slot:empty { visibility: hidden; }
+
+.bcard__head-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+.bcard__hp {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-display);
+  font-size: 26px;
+  line-height: 0.9;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.bcard__hp .bcard__ico { width: 15px; height: 15px; margin-top: -2px; }
+.bcard__hp--dir { flex-direction: row; gap: 4px; align-items: baseline; }
+.bcard__dir-val { color: #ef4444; }
+.bcard__dir-lbl {
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.bcard__name {
+  max-width: 100%;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+/* Строка статистики: K / D / деньги */
+.bcard__stats {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 7px;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 19px;
+  line-height: 1;
+}
+.bcard__stat { display: flex; align-items: center; gap: 4px; }
+.bcard__stat .bcard__ico { width: 14px; height: 14px; color: var(--text-muted); }
+.bcard__stat--k { color: #22c55e; }
+.bcard__stat--d { color: #ef4444; }
+.bcard__money { margin-left: auto; color: #22c55e; }
+
+/* Оружие и гранаты */
+.bcard__loadout {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 7px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+}
+.bcard__weapon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  opacity: 0.55;
+}
+.bcard__weapon.active { opacity: 1; }
+.bcard__weapon-img {
+  height: 20px;
+  max-width: 64px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+.bcard__grens {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.bcard__gren { display: flex; opacity: 0.55; }
+.bcard__gren.active { opacity: 1; }
+.bcard__gren img {
+  width: 13px;
+  height: 17px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+.bcard__armor {
+  width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+  opacity: 0.85;
+}
+
+/* Мёртвый игрок */
+.bcard--dead { opacity: 0.65; }
+.bcard--dead .bcard__avatar { filter: grayscale(1) brightness(0.55); }
+.bcard--dead .bcard__loadout > * { visibility: hidden; }
+
+/* Пул гранат команды в BLAST-варианте — прямо над рядами карточек */
+.cards--blast .team-grenades {
+  top: auto;
+  bottom: 240px;
+  left: 24px;
+  right: 24px;
+  transform: none;
+  gap: 0;
+  justify-content: space-between;
+}
+
+
+/* ========== TOPBAR — компактное табло (BLAST-вариант) ========== */
+.cards--blast #topbar {
+  /* Табло увеличено в 1.25 раза; масштаб от верхнего центра */
+  transform: translateX(-50%) scale(1.25);
+  transform-origin: 50% 0;
+  top: 14px;
+  gap: 0;
+  align-items: stretch;
+  height: 60px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+}
+.cards--blast .team {
+  gap: 14px;
+  padding: 0 16px 0 20px;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.cards--blast .team--t { padding: 0 20px 0 16px; }
+
+/* Цветная полоска стороны по краю табло */
+.cards--blast .team::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 5px;
+  z-index: 2;
+}
+.cards--blast .team--ct::before { left: 0;  background: var(--ct); border-radius: var(--radius) 0 0 var(--radius); }
+.cards--blast .team--t::before  { right: 0; background: var(--t);  border-radius: 0 var(--radius) var(--radius) 0; }
+
+.cards--blast .team__logo { width: 42px; height: 42px; }
+
+.cards--blast .team__score-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
+}
+.cards--blast .team__score { font-size: 40px; line-height: 0.85; }
+
+/* Отсечки выигранных карт (BO3 — 2, BO5 — 3) */
+.cards--blast .team__series { display: none; gap: 3px; }
+.cards--blast .team__series--on { display: flex; }
+.team__pip {
+  width: 10px;
+  height: 6px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.3s, box-shadow 0.3s;
+}
+.team--ct .team__pip--won { background: var(--ct); box-shadow: 0 0 6px var(--ct-dim); }
+.team--t  .team__pip--won { background: var(--t);  box-shadow: 0 0 6px var(--t-dim); }
+
+/* Центр: номер раунда + таймер */
+.cards--blast .topbar__center {
+  gap: 2px;
+  justify-content: center;
+  min-width: 132px;
+  padding: 0 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+.cards--blast .topbar__round {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.cards--blast .topbar__timer {
+  font-size: 32px;
+  line-height: 1;
+  padding: 1px 10px 0;
+  gap: 6px;
+  min-width: 0;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+}
+.cards--blast .topbar__bomb-icon { width: 20px; height: 20px; }
+.cards--blast .topbar__defuser-icon { width: 18px; height: 18px; }
+.cards--blast .alive-counter { display: none; }
+
+/* ── Стрик 5+ раундов: вместо пульсации всей плашки — «горящая» полоска стороны ── */
+.cards--blast .team--fire {
+  animation: none;
+  border-color: transparent !important;
+}
+.cards--blast .team--fire::before {
+  width: 6px;
+  background: linear-gradient(0deg, #ef4444 0%, #f97316 45%, #fecd06 100%);
+  background-size: 100% 220%;
+  box-shadow: 0 0 12px rgba(249, 115, 22, 0.75);
+  animation: streakStrip 1.4s ease-in-out infinite alternate;
+}
+@keyframes streakStrip {
+  from { background-position: 0 0%;   box-shadow: 0 0 8px  rgba(249, 115, 22, 0.55); }
+  to   { background-position: 0 100%; box-shadow: 0 0 16px rgba(249, 115, 22, 0.95); }
+}
+
+
+/* ========== TOPBAR — крылья: закладка / бомба / дефьюз / ROUND WIN (BLAST) ========== */
+.tbw,
+.topbar__timer-alt { display: none; }
+
+.cards--blast .tbw {
+  display: flex;
+  align-items: stretch;
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 210px;
+  overflow: hidden;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  pointer-events: none;
+  transition: clip-path 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* T — справа, раскрывается от табло вправо; CT — слева, от табло влево */
+.cards--blast .tbw--t  { left: 100%;  border-left: 0;  border-radius: 0 var(--radius) var(--radius) 0; flex-direction: row;         clip-path: inset(0 100% 0 0); }
+.cards--blast .tbw--ct { right: 100%; border-right: 0; border-radius: var(--radius) 0 0 var(--radius); flex-direction: row-reverse; clip-path: inset(0 0 0 100%); }
+.cards--blast .tbw--open { clip-path: inset(0 0 0 0); }
+
+/* Заливка-прогресс: прижата к табло */
+.tbw__fill {
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 0;
+  overflow: hidden;
+}
+.tbw--t  .tbw__fill { left: 0; }
+.tbw--ct .tbw__fill { right: 0; }
+.tbw--plant .tbw__fill,
+.tbw--bomb  .tbw__fill  { background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%); }
+.tbw--defuse .tbw__fill { background: linear-gradient(270deg, var(--ct) 0%, #2563eb 100%); }
+.tbw--ct.tbw--win .tbw__fill { background: linear-gradient(270deg, var(--ct) 0%, #1e40af 100%); }
+.tbw--t.tbw--win  .tbw__fill { background: linear-gradient(90deg, #fecd06 0%, #f97316 100%); }
+
+/* Иконка у края табло */
+.tbw__icon {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  width: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tbw--t  .tbw__icon { border-right: 1px solid rgba(255, 255, 255, 0.14); }
+.tbw--ct .tbw__icon { border-left:  1px solid rgba(255, 255, 255, 0.14); }
+.tbw__ico {
+  width: 30px;
+  height: 30px;
+  background: #fff;
+  -webkit-mask: var(--ico) center / contain no-repeat;
+          mask: var(--ico) center / contain no-repeat;
+  --ico: url("assets/weapons/c4.svg");
+}
+.tbw--ct .tbw__ico { --ico: url("assets/weapons/defuser.svg"); }
+.tbw--defused .tbw__ico { background: var(--text-muted); opacity: 0.6; }
+
+/* Текст у дальнего края */
+.tbw__text {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  padding: 0 14px;
+  white-space: nowrap;
+}
+.tbw--t  .tbw__text { align-items: flex-end; }
+.tbw--ct .tbw__text { align-items: flex-start; }
+.tbw__l1 {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+}
+.tbw__l1:empty { display: none; }
+.tbw__l2 {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.75);
+}
+.tbw--bomb .tbw__l2 { font-size: 17px; color: var(--text); }
+.tbw--defuse .tbw__l2,
+.tbw--defused .tbw__l2 {
+  font-family: var(--font-display);
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  color: var(--text);
+}
+.tbw--defused .tbw__l2 { font-family: var(--font-body); font-size: 13px; letter-spacing: 0.1em; color: #22c55e; }
+
+/* ROUND WIN */
+.tbw__win {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: 0.05em;
+  color: #fff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.tbw--t .tbw__win { color: #111; text-shadow: none; }
+.tbw--win .tbw__win { display: flex; animation: tbwWinIn 0.55s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.tbw--win .tbw__icon,
+.tbw--win .tbw__text { visibility: hidden; }
+.tbw--win .tbw__fill::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 35%, rgba(255, 255, 255, 0.35) 50%, transparent 65%);
+  background-size: 250% 100%;
+  animation: tbwSweep 1.8s linear infinite;
+}
+@keyframes tbwSweep {
+  from { background-position: 130% 0; }
+  to   { background-position: -30% 0; }
+}
+@keyframes tbwWinIn {
+  from { opacity: 0; letter-spacing: 0.35em; }
+  to   { opacity: 1; letter-spacing: 0.05em; }
+}
+
+/* Центр табло: прочерк во время бомбы, иконка исхода после дефьюза/взрыва */
+.cards--blast .topbar__timer { min-height: 33px; }
+.cards--blast .topbar__timer--alt #round_timer { display: none; }
+.cards--blast .topbar__timer--alt .topbar__timer-alt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 60px;
+}
+.topbar__outcome {
+  width: 28px;
+  height: 28px;
+  -webkit-mask: var(--ico) center / contain no-repeat;
+          mask: var(--ico) center / contain no-repeat;
+  animation: tbwOutcomeIn 0.4s ease-out both;
+}
+.topbar__outcome--defused  { --ico: url("assets/weapons/defuser.svg"); background: #22c55e; }
+.topbar__outcome--exploded { --ico: url("assets/weapons/c4.svg");      background: #ef4444; }
+@keyframes tbwOutcomeIn {
+  from { transform: scale(0.4); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Классические индикаторы бомбы в BLAST-варианте не нужны — всё в крыльях */
+.cards--blast .topbar__bomb-icon,
+.cards--blast .topbar__defuser-icon,
+.cards--blast #timer_ring_svg { display: none !important; }
+.cards--blast .topbar__timer--bomb,
+.cards--blast .topbar__timer--defuse { color: var(--accent); animation: none; box-shadow: none; }
+.cards--blast .defuse-timer { display: none; }

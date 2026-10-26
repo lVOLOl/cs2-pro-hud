@@ -98,6 +98,104 @@ function classifyWeapons(player) {
 
 const _deadPlayers = new Set()
 
+// ── Card style: "classic" | "blast" (переключается в админке → settings.card_style) ──
+let _cardStyle = "classic"
+
+function setCardStyle(style) {
+  const next = style === "blast" ? "blast" : "classic"
+  document.body.classList.toggle("cards--blast", next === "blast")
+  if (next === _cardStyle) return
+  _cardStyle = next
+  _deadPlayers.clear()
+  if (typeof lastState !== "undefined" && lastState) updatePlayers(lastState)
+}
+
+const BCARD_ICONS = {
+  heart: `<svg viewBox="0 0 24 24" class="bcard__ico"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
+  kills: `<svg viewBox="0 0 24 24" class="bcard__ico"><g fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="12" cy="12" r="7.5"/><path d="M12 1.5v6M12 16.5v6M1.5 12h6M16.5 12h6"/></g><circle cx="12" cy="12" r="1.6" fill="currentColor"/></svg>`,
+  deaths: `<svg viewBox="0 0 24 24" class="bcard__ico"><path fill="currentColor" d="M12 2C6.9 2 3 5.7 3 10.4c0 2.8 1.4 5.2 3.6 6.7V20c0 1.1.9 2 2 2h6.8c1.1 0 2-.9 2-2v-2.9c2.2-1.5 3.6-3.9 3.6-6.7C21 5.7 17.1 2 12 2zm-3.6 12.2a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4zm7.2 0a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4zM10 18.5h1.2V21H10zm2.8 0H14V21h-1.2z"/></svg>`,
+}
+
+function _weaponImg(name, cls) {
+  return `<img class="${cls}" src="assets/weapons/${name}.svg" alt="" onerror="this.style.display='none'">`
+}
+
+function buildBlastCard(id, p, team, observedSid) {
+  const state = p.state || {}
+  const health = state.health ?? 0
+  const armor = state.armor ?? 0
+  const helmet = state.helmet ?? false
+  const ms = p.match_stats || {}
+  const money = (state.money ?? state.Money) ?? 0
+  const roundKills = state.round_kills ?? 0
+  const roundDmg = state.round_totaldmg ?? 0
+  const isDead = health <= 0
+  const sideCls = team === "CT" ? "bcard--ct" : "bcard--t"
+
+  const { primary, pistol, grenades, hasBomb, hasDefuser, activeName } = classifyWeapons(p)
+  const main = primary || pistol
+
+  const weaponHTML = main
+    ? `<div class="bcard__weapon${main.isActive ? " active" : ""}">${_weaponImg(main.name, "bcard__weapon-img")}</div>`
+    : `<div class="bcard__weapon"></div>`
+
+  const grenHTML = grenades.map(g => {
+    let out = ""
+    for (let i = 0; i < g.count; i++) {
+      out += `<div class="bcard__gren${g.isActive ? " active" : ""}">${_weaponImg(g.name, "")}</div>`
+    }
+    return out
+  }).join("")
+
+  const armorHTML = armor > 0
+    ? _weaponImg(helmet ? "armor_helmet" : "kevlar", "bcard__armor")
+    : ""
+
+  let badgeHTML = ""
+  if (hasBomb) badgeHTML += `<div class="bcard__badge bcard__badge--bomb${activeName === "c4" ? " active" : ""}"><span class="bcard__badge-ico"></span></div>`
+  if (team === "CT" && hasDefuser) badgeHTML += `<div class="bcard__badge bcard__badge--kit"><span class="bcard__badge-ico"></span></div>`
+
+  const slot = p.observer_slot ?? ""
+  const slotLabel = slot === "" ? "" : String((Number(slot) + 1) % 10)   // клавиша, которой выбирают игрока
+  const name = truncateName(p.name || "?", 14).replace(/</g, "&lt;")
+  const observedCls = observedSid && String(p.steamid) === String(observedSid) ? " bcard--observed" : ""
+  const deadCls = (isDead && _deadPlayers.has(id)) ? " bcard--dead" : ""
+
+  const hpBlock = isDead
+    ? `<div class="bcard__hp bcard__hp--dir"><span class="bcard__dir-val">${roundDmg}</span><span class="bcard__dir-lbl">DiR</span></div>`
+    : `<div class="bcard__hp">${armorHTML}<span>${health}</span></div>`
+
+  return `<div class="bcard ${sideCls}${deadCls}${observedCls}" data-pid="${id}">
+    <div class="bcard__photo">
+      <img class="bcard__avatar" src="${getSteamAvatar(p.steamid)}" alt="">
+      <div class="bcard__badges">${badgeHTML}</div>
+      ${roundKills > 0 ? `<div class="bcard__rk">${roundKills}</div>` : ""}
+    </div>
+    <div class="bcard__head">
+      <div class="bcard__hpfill" style="width:${Math.max(0, Math.min(100, health))}%"></div>
+      <div class="bcard__head-right">
+        ${hpBlock}
+        <div class="bcard__name">${name}</div>
+      </div>
+    </div>
+    <div class="bcard__stats">
+      <span class="bcard__stat bcard__stat--k">${BCARD_ICONS.kills}${ms.kills ?? 0}</span>
+      <span class="bcard__stat bcard__stat--d">${BCARD_ICONS.deaths}${ms.deaths ?? 0}</span>
+      <span class="bcard__money">$${money}</span>
+    </div>
+    <div class="bcard__loadout">
+      ${weaponHTML}
+      <div class="bcard__grens">${grenHTML}</div>
+    </div>
+  </div>`
+}
+
+// observer_slot в GSI с нуля: слот 0 = клавиша 1 (первый), слот 9 = клавиша 0 (последний)
+function _slotOrder(p) {
+  const s = Number(p.observer_slot)
+  return Number.isFinite(s) ? s : 99
+}
+
 function updatePlayers(data) {
   if (!data.allplayers) return
 
@@ -105,8 +203,12 @@ function updatePlayers(data) {
   let tHTML = ""
   const nowDead = new Set()
   const newlyDied = []
+  const isBlast = _cardStyle === "blast"
+  const observedSid = data.player?.steamid || data.player?.SteamId || null
+  let ids = Object.keys(data.allplayers)
+  if (isBlast) ids.sort((a, b) => _slotOrder(data.allplayers[a]) - _slotOrder(data.allplayers[b]))
 
-  for (const id in data.allplayers) {
+  for (const id of ids) {
     const p = data.allplayers[id]
     const state = p.state || {}
     const health = state.health ?? 0
@@ -175,6 +277,13 @@ function updatePlayers(data) {
     }
     const deadClass = (isDead && _deadPlayers.has(id)) ? " player--dead" : ""
 
+    if (isBlast) {
+      const bhtml = buildBlastCard(id, p, team, observedSid)
+      if (team === "CT") ctHTML += bhtml
+      else tHTML += bhtml
+      continue
+    }
+
     const html = `<div class="player ${teamClass}${deadClass}" data-pid="${id}">
       <div class="player__accent"></div>
       <div class="player__avatar_money-wrap">
@@ -221,10 +330,10 @@ function updatePlayers(data) {
 
   // Trigger death transition for players who just died this tick
   for (const pid of newlyDied) {
-    const el = document.querySelector(`.player[data-pid="${pid}"]`)
+    const el = document.querySelector(`.players [data-pid="${pid}"]`)
     if (el) {
       void el.offsetWidth
-      el.classList.add("player--dead")
+      el.classList.add(isBlast ? "bcard--dead" : "player--dead")
     }
   }
 

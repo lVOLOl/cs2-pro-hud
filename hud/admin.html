@@ -217,6 +217,20 @@
   </div>
 </div>
 
+<!-- ── TEAMS ──────────────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Команды</div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:12px;max-width:860px">
+    Отметь игроков каждой команды. По ним HUD сам понимает, кто сейчас за CT, а кто за T:
+    счёт серии и логотип команды переезжают за ней после смены сторон.
+  </div>
+  <div id="teams_box" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:860px;margin-bottom:12px"></div>
+  <div style="display:flex;gap:8px;max-width:860px">
+    <button class="btn-save" onclick="fillTeamsFromGame()" style="background:rgba(255,255,255,0.05);border-color:var(--border);color:var(--text)">Заполнить из текущей игры</button>
+    <button class="btn-save" onclick="saveTeams()" style="background:rgba(59,130,246,0.15);border-color:rgba(59,130,246,0.3);color:#3b82f6">Сохранить команды</button>
+  </div>
+</div>
+
 <!-- ── MAP VETO ─────────────────────────────────────────────── -->
 <div class="manual-section" style="margin-top:40px">
   <div class="section-title">Map Veto</div>
@@ -229,6 +243,18 @@
   </div>
 
   <div id="veto_map_list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px"></div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;max-width:860px">
+    <span style="font-size:12px;color:var(--muted);min-width:150px">Счёт серии (карты)</span>
+    <span style="font-size:12px;color:#3b82f6;font-weight:700;white-space:nowrap" id="series_ct_name">CT</span>
+    <input class="text-input" id="series_ct" type="number" min="0" max="3" value="0" style="width:60px" oninput="saveSeries()">
+    <span class="score-sep">:</span>
+    <input class="text-input" id="series_t" type="number" min="0" max="3" value="0" style="width:60px" oninput="saveSeries()">
+    <span style="font-size:12px;color:#fecd06;font-weight:700;white-space:nowrap" id="series_t_name">T</span>
+    <button class="bo-btn" id="series_manual" onclick="saveSeries()">Вручную</button>
+    <button class="bo-btn" id="series_auto" onclick="setSeriesAuto()">Авто</button>
+    <span style="font-size:12px;color:var(--muted)">Счёт хранится по названию команды (блок «Команды» выше) и сам переезжает при смене сторон. Авто: из игры, иначе по сыгранным картам вето (левая цифра — команда, которая была за CT на момент ввода)</span>
+  </div>
 
   <div style="display:flex;gap:8px">
     <button class="btn-save" onclick="addVetoMap()">+ Карта</button>
@@ -249,10 +275,112 @@
   </div>
 
   <div style="display:flex;align-items:center;gap:16px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Карточки игроков</span>
+    <button class="bo-btn" id="card_style_classic" onclick="setCardStyle('classic')">Classic</button>
+    <button class="bo-btn" id="card_style_blast" onclick="setCardStyle('blast')">BLAST</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:8px">Вертикальные карточки в ряд снизу</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:16px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
     <span style="font-size:13px;color:var(--muted);min-width:130px">Гранаты на карте</span>
     <button class="bo-btn" id="grenades_on"  onclick="setGrenades(true)">Вкл</button>
     <button class="bo-btn" id="grenades_off" onclick="setGrenades(false)">Выкл</button>
     <span style="font-size:12px;color:var(--muted);margin-left:8px">Требует CSSharp плагин</span>
+  </div>
+</div>
+
+<!-- ── AUTO OBSERVE ───────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Автообсерв</div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:110px">Автообсерв</span>
+    <button class="bo-btn" id="autoobs_on"  onclick="setAutoObs(true)">Вкл</button>
+    <button class="bo-btn" id="autoobs_off" onclick="setAutoObs(false)">Выкл</button>
+    <span id="autoobs_state" style="font-size:13px;font-weight:700;margin-left:8px"></span>
+    <button class="btn-save" id="autoobs_resume" onclick="resumeAutoObs()" style="display:none;margin-left:auto">Вернуть сейчас</button>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:110px">Агент</span>
+    <span id="autoobs_agent" style="font-size:13px;font-weight:700"></span>
+    <span id="autoobs_gsi" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+  </div>
+
+  <div style="margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:13px">
+      <span style="color:var(--muted)">Ситуация</span><span id="autoobs_level" style="font-weight:700"></span>
+      <span style="color:var(--muted)">Текущий игрок</span><span id="autoobs_curlevel"></span>
+      <span style="color:var(--muted)">Решение</span><span id="autoobs_why"></span>
+      <span style="color:var(--muted)">Удержание</span><span id="autoobs_holds" style="font-variant-numeric:tabular-nums"></span>
+      <span style="color:var(--muted)">Пролётка</span><span id="autoobs_flyover" style="color:var(--muted)">—</span>
+      <span style="color:var(--muted)">Камера (GSI)</span><span id="autoobs_camera" style="font-size:12px;font-family:ui-monospace,Consolas,monospace;color:var(--muted)"></span>
+    </div>
+  </div>
+
+  <div style="margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase">Пролётки в фризтайм</span>
+      <span id="fly_spawns" style="font-size:12px;color:var(--muted)"></span>
+      <button class="btn-clear" style="margin:0 0 0 auto;font-size:11px;padding:3px 9px" onclick="stopFlyover()">Стоп</button>
+      <button class="btn-clear" style="margin:0;font-size:11px;padding:3px 9px" onclick="resetSpawns()">Сбросить спавны карты</button>
+    </div>
+    <div id="fly_paths" style="display:flex;flex-direction:column;gap:6px;font-size:13px"></div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:12px;color:var(--muted)">Своя пролётка:</span>
+      <select class="text-input" id="fly_rec_side" style="width:70px"><option>T</option><option>CT</option></select>
+      <input class="text-input" id="fly_rec_id" placeholder="id, например t_long" style="width:160px">
+      <button class="bo-btn" onclick="flyRecord('start')">Начать</button>
+      <button class="bo-btn" onclick="flyRecord('add')">+ точка камеры</button>
+      <button class="bo-btn" onclick="flyRecord('clear')">Очистить</button>
+      <button class="bo-btn" onclick="flyRecord('save')">Сохранить</button>
+      <span id="fly_rec" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.5">
+      Спавны запоминаются сами в первом фризтайме карты. Пути строятся по ним (дуга, проход, кран) — или берутся из flyovers.json, если для стороны записаны свои.
+      Точка камеры берётся из GSI (строка «Камера (GSI)» выше): лети свободной камерой и жми «+ точка» на каждом ключевом месте.
+    </div>
+  </div>
+
+  <div style="margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Контакты</div>
+    <div id="autoobs_entities" style="display:flex;flex-direction:column;gap:8px;font-size:13px"></div>
+  </div>
+
+  <div style="margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Тишина — ближе всех к контакту</div>
+    <div id="autoobs_quiet" style="display:flex;flex-direction:column;gap:3px;font-size:13px"></div>
+  </div>
+
+  <div style="margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:8px">Журнал решений</div>
+    <div id="autoobs_log" style="display:flex;flex-direction:column;gap:3px;font-size:12px;max-height:260px;overflow:auto;font-variant-numeric:tabular-nums"></div>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:110px">Запись GSI</span>
+    <button class="bo-btn" id="autoobs_rec_on"  onclick="setAutoObsRecord(true)">Записывать</button>
+    <button class="bo-btn" id="autoobs_rec_off" onclick="setAutoObsRecord(false)">Стоп</button>
+    <span id="autoobs_rec" style="font-size:12px;color:var(--muted)"></span>
+  </div>
+
+  <div style="margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+      <span style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase">Конфиг</span>
+      <code id="autoobs_cfg_file" style="font-size:11px;color:rgba(255,255,255,.5)"></code>
+      <span id="autoobs_cfg_err" style="font-size:12px;color:#ef4444"></span>
+      <button class="btn-save" style="margin-left:auto" onclick="loadAutoObsConfig()">Обновить</button>
+      <button class="btn-save" style="background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.3);color:#3b82f6" onclick="saveAutoObsConfig()">Сохранить</button>
+    </div>
+    <textarea id="autoobs_cfg" spellcheck="false" style="width:100%;height:220px;background:rgba(0,0,0,.35);color:var(--text);border:1px solid var(--border);border-radius:6px;font:12px/1.45 ui-monospace,Consolas,monospace;padding:10px;resize:vertical"></textarea>
+  </div>
+
+  <div style="font-size:12px;color:var(--muted);margin-top:10px;max-width:860px;line-height:1.55">
+    Приоритеты: P0 клатч → P1 крупный контакт / AWP-дуэль → P2 контакт → P3 бомба → P4 тишина.
+    Агент на ПК с CS2: <code style="color:rgba(255,255,255,.6)">tools/autoobs-agent.cmd</code> (в нём адрес этого сервера).
+    Хоткеи в окне CS2: <b>Ctrl+Shift+PageUp</b> — включить / вернуть из паузы, <b>Ctrl+Shift+PageDown</b> — выключить.
+    Ручное переключение камеры, цифры, кнопки или движение мыши в окне CS2 ставят автомат на паузу (время — <code>timing.manual_pause_ms</code>).
+    Прогон записи без игры: <code style="color:rgba(255,255,255,.6)">node tools/autoobs-replay.js recordings/&lt;файл&gt;.jsonl --why</code>
   </div>
 </div>
 
@@ -405,7 +533,7 @@
 }
 .veto-row {
   display: grid;
-  grid-template-columns: 48px 180px 130px 56px 12px 56px auto;
+  grid-template-columns: 48px 160px 130px 150px 56px 12px 56px auto;
   align-items: center;
   gap: 8px;
   background: var(--panel);
@@ -572,7 +700,7 @@ let vetoMaps = []  // [{name, status, score:[ct,t]}]
 
 function selectBO(bo) {
   vetoBo = bo
-  document.querySelectorAll(".bo-btn").forEach(b => b.classList.toggle("active", b.id === `bo_btn_${bo}`))
+  document.querySelectorAll('[id^="bo_btn_"]').forEach(b => b.classList.toggle("active", b.id === `bo_btn_${bo}`))
 }
 
 function addVetoMap(map) {
@@ -598,11 +726,18 @@ function renderVetoList() {
     ).join("")
 
     const scoreVis = m.status === "played" ? "" : "visibility:hidden"
+    // Пик: кто выбрал карту (логотип над картой в HUD) — команды из блока «Команды»
+    const teamNames = (typeof teamsDraft !== "undefined" ? teamsDraft : []).map(t => t.name).filter(Boolean)
+    if (m.pick && m.pick !== "decider" && !teamNames.includes(m.pick)) teamNames.push(m.pick)
+    const pickOpts = [`<option value="" ${!m.pick ? "selected" : ""}>Пик: —</option>`]
+      .concat(teamNames.map(n => `<option value="${escHtml(n)}" ${m.pick === n ? "selected" : ""}>Пик: ${escHtml(n)}</option>`))
+      .concat([`<option value="decider" ${m.pick === "decider" ? "selected" : ""}>Десайдер</option>`]).join("")
 
     row.innerHTML = `
       <img src="${ORIGIN}/assets/overviews/map_logo/${m.name}.png" onerror="this.src=''" alt="" style="border-radius:4px">
       <select class="text-input" onchange="vetoMaps[${i}].name=this.value;renderVetoList()">${mapOpts}</select>
       <select class="text-input status-select" onchange="vetoMaps[${i}].status=this.value;renderVetoList()">${statusOpts}</select>
+      <select class="text-input status-select" onchange="vetoMaps[${i}].pick=this.value||null">${pickOpts}</select>
       <input class="text-input" type="number" min="0" max="16" value="${m.score[0]}" style="${scoreVis}"
         onchange="vetoMaps[${i}].score[0]=+this.value">
       <span class="score-sep" style="${scoreVis}">:</span>
@@ -672,6 +807,21 @@ async function setObsMode(mode) {
   showStatus("Obs mode: " + mode)
 }
 
+function _applyCardStyleUI(style) {
+  document.getElementById("card_style_classic")?.classList.toggle("active", style !== "blast")
+  document.getElementById("card_style_blast")?.classList.toggle("active", style === "blast")
+}
+
+async function setCardStyle(style) {
+  _applyCardStyleUI(style)
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ card_style: style })
+  })
+  showStatus("Карточки: " + (style === "blast" ? "BLAST" : "Classic"))
+}
+
 async function setGrenades(on) {
   _applyGrenadesUI(on)
   await fetch("/api/settings", {
@@ -682,12 +832,325 @@ async function setGrenades(on) {
   showStatus("Гранаты: " + (on ? "вкл" : "выкл"))
 }
 
+// ── Teams (название + логотип + состав) ──────────────────────────────────────
+let teamsDraft = [
+  { name: "", logo: null, players: [] },
+  { name: "", logo: null, players: [] },
+]
+let teamLogoFiles = []
+
+function _teamHas(i, sid) {
+  return teamsDraft[i].players.some(p => String(p.steamid) === String(sid))
+}
+
+function renderTeams() {
+  const box = document.getElementById("teams_box")
+  if (!box) return
+  box.innerHTML = teamsDraft.map((t, i) => {
+    const logoOpts = ['<option value="">— без логотипа —</option>']
+      .concat(teamLogoFiles.map(({ file, name }) =>
+        `<option value="${escHtml(file)}" ${file === t.logo ? "selected" : ""}>${escHtml(name)}</option>`))
+      .join("")
+    return `<div style="background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <span style="font-size:11px;font-weight:700;letter-spacing:.15em;color:var(--muted);text-transform:uppercase">Команда ${i + 1}</span>
+        <span id="team_side_${i}" style="font-size:11px;font-weight:700"></span>
+      </div>
+      <input class="text-input" placeholder="Название команды" value="${escHtml(t.name)}"
+        oninput="teamsDraft[${i}].name=this.value" style="margin-bottom:8px">
+      <select class="text-input" onchange="teamsDraft[${i}].logo=this.value||null" style="margin-bottom:10px">${logoOpts}</select>
+      <div id="team_players_${i}" style="display:flex;flex-direction:column;gap:4px"></div>
+    </div>`
+  }).join("")
+  renderTeamPlayers()
+}
+
+// Списки игроков: текущие в игре + сохранённые в составах (даже если сейчас не на сервере)
+function renderTeamPlayers() {
+  const known = new Map()
+  for (const p of players || []) known.set(String(p.steamid), { steamid: String(p.steamid), name: p.name, team: p.team })
+  for (const t of teamsDraft) for (const p of t.players) {
+    if (!known.has(String(p.steamid))) known.set(String(p.steamid), { steamid: String(p.steamid), name: p.name, team: "" })
+  }
+  const list = [...known.values()].sort((a, b) => String(a.team).localeCompare(String(b.team)) || String(a.name).localeCompare(String(b.name)))
+  const sideColor = team => team === "CT" ? "#3b82f6" : (team === "T" || team === "TERRORIST") ? "#fecd06" : "var(--muted)"
+  for (let i = 0; i < teamsDraft.length; i++) {
+    const el = document.getElementById("team_players_" + i)
+    if (!el) continue
+    el.innerHTML = list.length ? list.map(p => `
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;opacity:${_teamHas(1 - i, p.steamid) ? 0.35 : 1}">
+        <input type="checkbox" ${_teamHas(i, p.steamid) ? "checked" : ""} onchange="toggleTeamPlayer(${i}, '${escHtml(p.steamid)}', this.checked)">
+        <span style="width:6px;height:6px;border-radius:50%;background:${sideColor(String(p.team).toUpperCase())}"></span>
+        <span>${escHtml(p.name || p.steamid)}</span>
+      </label>`).join("")
+      : '<span style="font-size:12px;color:var(--muted)">Нет игроков — зайдите в матч</span>'
+  }
+  // Где сейчас команда (по составу)
+  for (let i = 0; i < teamsDraft.length; i++) {
+    const el = document.getElementById("team_side_" + i)
+    if (!el) continue
+    let ct = 0, t = 0
+    for (const p of players || []) {
+      if (!_teamHas(i, p.steamid)) continue
+      const side = String(p.team).toUpperCase()
+      if (side === "CT") ct++
+      else if (side === "T" || side === "TERRORIST") t++
+    }
+    el.textContent = ct || t ? (ct >= t ? "сейчас за CT" : "сейчас за T") : ""
+    el.style.color = ct >= t ? "#3b82f6" : "#fecd06"
+  }
+}
+
+function toggleTeamPlayer(i, steamid, on) {
+  const p = (players || []).find(x => String(x.steamid) === String(steamid))
+    || teamsDraft.flatMap(t => t.players).find(x => String(x.steamid) === String(steamid))
+    || { steamid, name: "" }
+  // игрок может быть только в одной команде
+  for (const t of teamsDraft) t.players = t.players.filter(x => String(x.steamid) !== String(steamid))
+  if (on) teamsDraft[i].players.push({ steamid: String(steamid), name: p.name || "" })
+  renderTeamPlayers()
+}
+
+function fillTeamsFromGame() {
+  const ct = (players || []).filter(p => String(p.team).toUpperCase() === "CT")
+  const t  = (players || []).filter(p => ["T", "TERRORIST"].includes(String(p.team).toUpperCase()))
+  if (!ct.length && !t.length) { showStatus("Нет игроков в игре", "error"); return }
+  teamsDraft[0].players = ct.map(p => ({ steamid: String(p.steamid), name: p.name }))
+  teamsDraft[1].players = t.map(p => ({ steamid: String(p.steamid), name: p.name }))
+  renderTeams()
+  showStatus("Составы заполнены: команда 1 — CT, команда 2 — T. Впиши названия и сохрани")
+}
+
+async function saveTeams() {
+  if (teamsDraft.some(t => t.players.length && !t.name.trim())) {
+    showStatus("Впиши название для каждой команды с игроками", "error"); return
+  }
+  await fetch("/api/teams", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ teams: teamsDraft })
+  })
+  showStatus("Команды сохранены")
+  refreshSeriesView()
+}
+
+async function loadTeams() {
+  try {
+    teamLogoFiles = await fetch("/api/logos").then(r => r.json()).catch(() => [])
+    const saved = await fetch("/api/teams").then(r => r.json())
+    for (let i = 0; i < 2; i++) {
+      const t = saved[i] || {}
+      teamsDraft[i] = { name: t.name || "", logo: t.logo || null, players: Array.isArray(t.players) ? t.players : [] }
+    }
+  } catch {}
+  renderTeams()
+  if (typeof renderVetoList === "function") renderVetoList()   // в «Пик» нужны названия команд
+}
+
+// ── Auto observe (отладочная страница) ───────────────────────────────────────
+const _sec = ms => (ms / 1000).toFixed(1) + " с"
+const _teamDot = t => `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${t === "CT" ? "#3b82f6" : "#fecd06"};margin-right:6px"></span>`
+
+function _renderAutoObs(s) {
+  if (!s) return
+  document.getElementById("autoobs_on")?.classList.toggle("active", !!s.enabled)
+  document.getElementById("autoobs_off")?.classList.toggle("active", !s.enabled)
+  const state = document.getElementById("autoobs_state")
+  for (const id of ["autoobs_on", "autoobs_off"]) { const b = document.getElementById(id); if (b) b.disabled = !!s.disabled }
+  if (s.disabled) { state.textContent = 'ОТКЛЮЧЁН в autoobs.json ("disabled": true) — включить нельзя, анализ и запись работают'; state.style.color = "#f59e0b" }
+  else if (!s.enabled) { state.textContent = "ВЫКЛ"; state.style.color = "var(--muted)" }
+  else if (s.paused) { state.textContent = `ПАУЗА ${_sec(s.pause_left_ms)} — ${s.pause_reason}`; state.style.color = "#f59e0b" }
+  else { state.textContent = "ВКЛ — работает"; state.style.color = "#22c55e" }
+  document.getElementById("autoobs_resume").style.display = s.enabled && s.paused ? "" : "none"
+
+  const ag = document.getElementById("autoobs_agent")
+  const a = (s.agents || [])[0]
+  ag.textContent = a ? `подключён: ${a.host}${s.agents.length > 1 ? " (+" + (s.agents.length - 1) + ")" : ""} · CS2 ${a.cs2_focus ? "в фокусе" : "НЕ в фокусе"}` : "не подключён"
+  ag.style.color = a ? (a.cs2_focus ? "#22c55e" : "#f59e0b") : "#ef4444"
+  document.getElementById("autoobs_gsi").textContent = s.gsi_age_ms == null ? "GSI: нет данных" : `GSI: ${_sec(s.gsi_age_ms)} назад · способ: ${s.switch_method}`
+
+  const d = s.decision
+  document.getElementById("autoobs_level").textContent = d ? `${d.level} ${d.label}` : "—"
+  document.getElementById("autoobs_curlevel").textContent = d ? d.current_level : "—"
+  document.getElementById("autoobs_why").textContent = d ? (d.action ? "→ " + d.action.reason : d.why) : "—"
+  document.getElementById("autoobs_holds").textContent = d
+    ? `минимум ${_sec(d.holds.min_hold_left)} · перестрелка ${_sec(d.holds.fight_left)} · килл ${_sec(d.holds.kill_left)}` : "—"
+
+  const cam = s.camera
+  document.getElementById("autoobs_camera").textContent = cam
+    ? `${cam.name || cam.steamid || "?"} · activity=${cam.activity || "—"} · spectarget=${cam.spectarget ?? "—"} · pos=${cam.position || "—"} · fwd=${cam.forward || "—"}`
+    : "—"
+
+  const fly = s.flyover || {}
+  const fa = fly.active
+  const flyEl = document.getElementById("autoobs_flyover")
+  flyEl.textContent = fa
+    ? `${fa.map} ${fa.side} ${fa.id} · ${_sec(fa.elapsed_ms)} / ${_sec(fa.dur_ms)} · до ${fa.max_speed} ед/с, ${fa.max_turn_dps}°/с${fa.truncated ? " · обрезана" : ""}`
+    : (fly.enabled ? "нет" : "выключены в конфиге") + (fly.last_end ? ` · последняя: ${fly.last_end.reason} (${_sec(fly.last_end.ago_ms)} назад)` : "")
+  flyEl.style.color = fa ? "#22c55e" : "var(--muted)"
+  const sp = fly.spawns || {}
+  const spTxt = side => sp[side] ? `${side}: ${sp[side].points} точек` : `${side}: нет`
+  document.getElementById("fly_spawns").textContent = fly.map ? `${fly.map} · ${spTxt("T")} · ${spTxt("CT")}${fly.winner ? " · победитель прошлого раунда: " + fly.winner : ""}` : ""
+  const dr = fly.draft || {}
+  document.getElementById("fly_rec").textContent = dr.id ? `${dr.side} ${dr.id}: ${dr.points} точек` : ""
+  const ag0 = (s.agents || [])[0]
+  if (ag0 && !ag0.fly) document.getElementById("fly_rec").textContent += " · агент без папки cfg — пролётки не пойдут"
+  if (fly.map && fly.map !== _flyPathsMap) loadFlyPaths(fly.map)
+
+  const ents = document.getElementById("autoobs_entities")
+  ents.innerHTML = d && d.entities.length ? d.entities.map(e => `
+    <div>
+      <div style="font-weight:700">P${e.level} ${escHtml(e.label)} <span style="color:var(--muted);font-weight:400">· активность ${e.activity}</span></div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:3px">
+        ${e.players.map(p => `<span>${_teamDot(p.team)}<span style="color:var(--muted)">[${escHtml(p.slot ?? "")}]</span> ${escHtml(p.name)} <b>${p.score}</b></span>`).join("")}
+      </div>
+    </div>`).join("") : '<span style="font-size:12px;color:var(--muted)">Нет контактов</span>'
+
+  const q = document.getElementById("autoobs_quiet")
+  q.innerHTML = d && d.quiet.length ? d.quiet.map(p => `
+    <div style="opacity:${p.in_range ? 1 : .45}">${_teamDot(p.team)}<span style="color:var(--muted)">[${escHtml(p.slot ?? "")}]</span> ${escHtml(p.name)}
+      <span style="color:var(--muted)">до врага ${p.dist} · очки ${p.score}${p.in_range ? "" : " · далеко"}</span></div>`).join("")
+    : '<span style="font-size:12px;color:var(--muted)">—</span>'
+
+  const log = document.getElementById("autoobs_log")
+  log.innerHTML = (s.log || []).length ? s.log.map(l => `
+    <div style="display:flex;gap:10px"><span style="min-width:56px;color:var(--muted)">${_sec(l.ago_ms)}</span><span>${escHtml(l.line)}</span></div>`).join("")
+    : '<span style="color:var(--muted)">Пусто</span>'
+
+  const r = s.recording || {}
+  document.getElementById("autoobs_rec_on")?.classList.toggle("active", !!r.active)
+  document.getElementById("autoobs_rec_off")?.classList.toggle("active", !r.active)
+  document.getElementById("autoobs_rec").textContent = r.file ? `${r.active ? "идёт" : "последняя"}: ${r.file} · пакетов ${r.packets}${r.active ? " · " + r.seconds + " с" : ""}` : ""
+
+  document.getElementById("autoobs_cfg_file").textContent = s.config_file || ""
+  document.getElementById("autoobs_cfg_err").textContent = s.config_error || ""
+}
+
+async function _autoObsConfig(patch) {
+  const s = await fetch("/api/autoobs/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch)
+  }).then(r => r.json()).catch(() => null)
+  _renderAutoObs(s)
+  return s
+}
+async function setAutoObs(on) { await _autoObsConfig({ enabled: on }); showStatus("Автообсерв: " + (on ? "ВКЛ" : "ВЫКЛ")) }
+async function resumeAutoObs() { await _autoObsConfig({ resume: true }); showStatus("Автообсерв снова работает") }
+async function setAutoObsRecord(on) { await _autoObsConfig({ record: on }); showStatus(on ? "Запись GSI начата" : "Запись GSI остановлена") }
+
+async function loadAutoObsConfig() {
+  try { document.getElementById("autoobs_cfg").value = await fetch("/api/autoobs/config-file").then(r => r.text()) } catch {}
+}
+async function saveAutoObsConfig() {
+  const text = document.getElementById("autoobs_cfg").value
+  const r = await fetch("/api/autoobs/config-file", { method: "POST", headers: { "Content-Type": "text/plain" }, body: text })
+    .then(r => r.json()).catch(e => ({ ok: false, error: e.message }))
+  if (r.ok) { showStatus("Конфиг автообсерва сохранён"); loadAutoObsConfig() }
+  else showStatus("Ошибка в конфиге: " + r.error, "error")
+}
+
+// ── Пролётки ────────────────────────────────────────────────────────────────
+let _flyPathsMap = ""
+async function loadFlyPaths(map) {
+  _flyPathsMap = map
+  try {
+    const r = await fetch("/api/autoobs/flyover/paths?map=" + encodeURIComponent(map)).then(r => r.json())
+    const el = document.getElementById("fly_paths")
+    el.innerHTML = ["T", "CT"].map(side => {
+      const list = r.paths?.[side] || []
+      return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="min-width:28px;font-weight:700;color:${side === "CT" ? "#3b82f6" : "#fecd06"}">${side}</span>
+        ${list.length ? list.map(p => `<button class="bo-btn" title="${p.generated ? "по спавнам" : "записанная"} · ${(p.dur_ms / 1000).toFixed(1)} с · путь ${p.length} · до ${p.max_speed} ед/с, ${p.max_turn_dps}°/с"
+            onclick="playFlyover('${side}','${escHtml(p.id)}')">▶ ${escHtml(p.id)}${p.generated ? "" : " ★"}</button>`).join("")
+          : '<span style="font-size:12px;color:var(--muted)">нет — спавны запомнятся в первом фризтайме</span>'}
+      </div>`
+    }).join("")
+  } catch {}
+}
+async function playFlyover(side, id) {
+  const r = await fetch("/api/autoobs/flyover/play", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ side, id }) })
+    .then(r => r.json()).catch(e => ({ ok: false, error: e.message }))
+  showStatus(r.ok ? `Пролётка ${side} ${id}: ${(r.dur_ms / 1000).toFixed(1)} с — переключись в CS2` : "Пролётка: " + r.error, r.ok ? "ok" : "error")
+}
+async function stopFlyover() { await fetch("/api/autoobs/flyover/stop", { method: "POST" }); showStatus("Пролётка остановлена") }
+async function resetSpawns() {
+  if (!_flyPathsMap) return
+  await fetch("/api/autoobs/spawns?map=" + encodeURIComponent(_flyPathsMap), { method: "DELETE" })
+  showStatus("Спавны карты сброшены — запомнятся в следующем фризтайме")
+  loadFlyPaths(_flyPathsMap)
+}
+async function flyRecord(action) {
+  const body = { action, side: document.getElementById("fly_rec_side").value, id: document.getElementById("fly_rec_id").value.trim() || "rec1" }
+  const r = await fetch("/api/autoobs/flyover/record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+    .then(r => r.json()).catch(e => ({ ok: false, error: e.message }))
+  if (!r.ok) { showStatus("Запись: " + r.error, "error"); return }
+  showStatus({ start: "Запись начата", add: "Точка добавлена: " + r.draft.keyframes.length, clear: "Точки очищены", save: "Пролётка сохранена в flyovers.json" }[action])
+  if (action === "save") loadFlyPaths(_flyPathsMap)
+}
+setInterval(() => { if (_flyPathsMap) loadFlyPaths(_flyPathsMap) }, 15000)
+
+async function pollAutoObs() {
+  try { _renderAutoObs(await fetch("/api/autoobs/status").then(r => r.json())) } catch {}
+}
+setInterval(pollAutoObs, 500)
+
+// ── Series score (карты в серии) ──────────────────────────────────────────────
+function _applySeriesUI(series) {
+  const manual = !!(series && typeof series === "object" && series.wins)
+  document.getElementById("series_manual")?.classList.toggle("active", manual)
+  document.getElementById("series_auto")?.classList.toggle("active", !manual)
+}
+
+// Текущий счёт серии от сервера: названия команд на сторонах + их карты
+async function refreshSeriesView() {
+  try {
+    const cur = await fetch("/api/series").then(r => r.json())
+    document.getElementById("series_ct_name").textContent = cur.ctName || "CT"
+    document.getElementById("series_t_name").textContent  = cur.tName  || "T"
+    const ctIn = document.getElementById("series_ct"), tIn = document.getElementById("series_t")
+    if (document.activeElement !== ctIn) ctIn.value = cur.ct ?? 0
+    if (document.activeElement !== tIn)  tIn.value  = cur.t ?? 0
+  } catch {}
+}
+setInterval(refreshSeriesView, 3000)
+
+async function saveSeries() {
+  const series = {
+    ct: Math.max(0, parseInt(document.getElementById("series_ct").value) || 0),
+    t:  Math.max(0, parseInt(document.getElementById("series_t").value)  || 0),
+  }
+  _applySeriesUI(series)
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ series })
+  })
+  const ctName = document.getElementById("series_ct_name").textContent
+  const tName  = document.getElementById("series_t_name").textContent
+  showStatus(`Серия: ${ctName} ${series.ct} : ${series.t} ${tName}`)
+}
+
+async function setSeriesAuto() {
+  _applySeriesUI(null)
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ series: null })
+  })
+  showStatus("Серия: авто")
+  refreshSeriesView()
+}
+
 async function loadSettings() {
   try {
     const res = await fetch("/api/settings")
     const s = await res.json()
     _applyObsModeUI(s.obs_mode || "detail")
     _applyGrenadesUI(s.show_grenades !== false)
+    _applyCardStyleUI(s.card_style || "classic")
+    _applySeriesUI(s.series)
+    refreshSeriesView()
   } catch {}
 }
 
@@ -1045,10 +1508,14 @@ async function init() {
   await loadSteamKey()
   await loadPlayerCards()
   await loadLogos()
+  await loadTeams()
+  await pollAutoObs()
+  await loadAutoObsConfig()
   renderPcUrls()
   setInterval(async () => {
     await loadWebcams()
     await loadPlayers()
+    renderTeamPlayers()
   }, 3000)
 }
 

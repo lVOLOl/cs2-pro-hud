@@ -1,4 +1,20 @@
 {
   "obs_mode": "broadcast",
-  "show_grenades": false
+  "show_grenades": true,
+  "card_style": "blast",
+  "series": {
+    "wins": {
+      "mix a": {
+        "name": "MIX A",
+        "n": 1
+      },
+      "mix b": {
+        "name": "MIX B",
+        "n": 0
+      }
+    }
+  },
+  "autoobs": {
+    "enabled": false
+  }
 }

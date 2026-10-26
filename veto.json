@@ -1,8 +1,16 @@
 {
-  "bo": "BO5",
+  "bo": "BO3",
   "maps": [
     {
-      "name": "de_cache",
+      "name": "de_mirage",
+      "status": "played",
+      "score": [
+        0,
+        0
+      ]
+    },
+    {
+      "name": "de_dust2",
       "status": "active",
       "score": [
         0,
@@ -10,31 +18,7 @@
       ]
     },
     {
-      "name": "de_anubis",
-      "status": "upcoming",
-      "score": [
-        0,
-        0
-      ]
-    },
-    {
-      "name": "de_mirage",
-      "status": "upcoming",
-      "score": [
-        0,
-        0
-      ]
-    },
-    {
-      "name": "de_nuke",
-      "status": "upcoming",
-      "score": [
-        0,
-        0
-      ]
-    },
-    {
-      "name": "de_ancient",
+      "name": "de_dust2",
       "status": "upcoming",
       "score": [
         0,

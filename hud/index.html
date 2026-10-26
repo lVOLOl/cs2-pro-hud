@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@500;600&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 
@@ -12,11 +12,18 @@
 <div id="no-data" class="no-data">Ожидание данных от CS2 (GSI). Зайдите в матч и убедитесь, что <code>cfg/gamestate_integration_prohud.vdf</code> скопирован в папку cfg игры.</div>
 
 <div id="topbar">
+  <!-- Крылья табло (BLAST-вариант): дефьюз / закладка / бомба / победа в раунде -->
+  <div id="tbw_ct" class="tbw tbw--ct"><div class="tbw__fill"></div><div class="tbw__icon"><span class="tbw__ico"></span></div><div class="tbw__text"><span class="tbw__l1"></span><span class="tbw__l2"></span></div><div class="tbw__win">ROUND WIN</div></div>
+  <div id="tbw_t" class="tbw tbw--t"><div class="tbw__fill"></div><div class="tbw__icon"><span class="tbw__ico"></span></div><div class="tbw__text"><span class="tbw__l1"></span><span class="tbw__l2"></span></div><div class="tbw__win">ROUND WIN</div></div>
   <div class="team team--ct">
     <img id="ct_logo" class="team__logo" alt="">
-    <span id="ct_score" class="team__score">0</span>
+    <div class="team__score-col">
+      <div id="ct_series" class="team__series"></div>
+      <span id="ct_score" class="team__score">0</span>
+    </div>
   </div>
   <div class="topbar__center">
+    <div id="round_label" class="topbar__round"></div>
     <div id="round_timer_wrap" class="topbar__timer">
       <svg id="timer_ring_svg" class="timer-ring-svg" style="display:none">
         <path id="timer_ring_track" fill="none" stroke-width="3"/>
@@ -25,6 +32,7 @@
       <img id="topbar_bomb_icon" class="topbar__bomb-icon" src="assets/weapons/c4.svg" alt="">
       <img id="topbar_defuser_icon" class="topbar__defuser-icon" src="assets/weapons/defuser.svg" alt="" style="display:none">
       <span id="round_timer">1:55</span>
+      <span id="round_timer_alt" class="topbar__timer-alt"></span>
     </div>
     <div class="alive-counter">
       <span id="ct_alive" class="alive-counter__num alive-counter__num--ct">5</span>
@@ -33,7 +41,10 @@
     </div>
   </div>
   <div class="team team--t">
-    <span id="t_score" class="team__score">0</span>
+    <div class="team__score-col">
+      <div id="t_series" class="team__series"></div>
+      <span id="t_score" class="team__score">0</span>
+    </div>
     <img id="t_logo" class="team__logo" alt="">
   </div>
 </div>
@@ -126,12 +137,12 @@
 <!-- <div id="killfeed" class="killfeed"></div> -->
 
 <div class="minimap-col">
-  <div id="veto_bar" class="veto-bar" style="display:none">
-    <span id="veto_bo" class="veto-bar__bo">BO3</span>
-    <div class="veto-bar__scroll-outer" id="veto_scroll_outer">
-      <div class="veto-bar__inner" id="veto_inner">
-        <div class="veto-bar__maps" id="veto_maps"></div>
-      </div>
+  <!-- Панель над миникартой: карты серии ⇄ название турнира (hud/info-panel.js) -->
+  <div id="veto_bar" class="veto-bar veto-bar--maps" style="display:none">
+    <div class="veto-bar__view veto-bar__view--maps"><div class="veto-bar__maps" id="veto_maps"></div></div>
+    <div class="veto-bar__view veto-bar__view--title">
+      <div class="veto-bar__t1" id="veto_t1"></div>
+      <div class="veto-bar__t2" id="veto_t2"></div>
     </div>
   </div>
   <div id="minimap" class="minimap">
@@ -142,6 +153,8 @@
 <script src="socket.io.min.js"></script>
 <script src="main.js"></script>
 <script src="players.js"></script>
+<script src="topbar-events.js"></script>
+<script src="info-panel.js"></script>
 <script src="killfeed.js"></script>
 <script src="minimap.js"></script>
 

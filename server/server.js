@@ -7,6 +7,7 @@ const http = require("http")
 const fs = require("fs")
 const { Server } = require("socket.io")
 const { getAvatar } = require("../steam/steam.js")
+const { createAutoObserve } = require("./autoobs/index.js")
 
 const BASE_DIR = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, "..")
 const CS2_OVERVIEWS = path.join(BASE_DIR, "hud", "assets", "overviews", "radar")
@@ -374,7 +375,10 @@ app.post("/", (req, res) => {
   }
 
   prevRoundPhase = roundPhase
-  gameState = { ...normalized, recent_kills: recentKills, fire_side: _fireStreak >= 5 ? _fireSide : null }
+  gameState = { ...normalized, recent_kills: recentKills, fire_side: _fireStreak >= 5 ? _fireSide : null, fire_streak: _fireStreak >= 5 ? _fireStreak : 0 }
+  gameState.series = computeSeries(gameState)
+  gameState.side_logos = sideLogos(gameState)
+  try { autoObs.onState(gameState) } catch (e) { console.error("[autoobs]", e.message) }
   io.emit("state", gameState)
   res.sendStatus(200)
 })
@@ -388,7 +392,7 @@ app.post("/api/streak", express.json(), (req, res) => {
   const { side, streak } = req.body || {}
   if (side !== undefined)   _fireSide   = side   || null
   if (streak !== undefined) _fireStreak = parseInt(streak) || 0
-  gameState = { ...gameState, fire_side: _fireStreak >= 5 ? _fireSide : null }
+  gameState = { ...gameState, fire_side: _fireStreak >= 5 ? _fireSide : null, fire_streak: _fireStreak >= 5 ? _fireStreak : 0 }
   io.emit("state", gameState)
   res.json({ fire_side: gameState.fire_side, streak: _fireStreak })
 })
@@ -512,9 +516,25 @@ app.get("/api/veto", (req, res) => res.json(loadVeto()))
 app.post("/api/veto", express.json(), (req, res) => {
   const { bo, maps } = req.body || {}
   if (!bo) return res.status(400).json({ error: "bo required" })
-  const data = { bo, maps: maps || [] }
+  const prev = loadVeto().maps || []
+  // Для сыгранных карт запоминаем названия команд: score[0] — команда, которая была
+  // за CT в момент ввода счёта. Если счёт не менялся — оставляем прежний снимок.
+  const outMaps = (maps || []).map((m, i) => {
+    const old = prev[i]
+    const same = old && old.name === m.name && old.status === m.status &&
+                 JSON.stringify(old.score) === JSON.stringify(m.score)
+    // pick: название команды, которая выбрала карту, или "decider"
+    const out = { name: m.name, status: m.status, score: m.score, pick: m.pick ? String(m.pick).slice(0, 60) : null }
+    if (m.status === "played") {
+      const teams = (same && old.teams) || currentTeamNames(gameState)
+      if (teams) out.teams = teams
+    }
+    return out
+  })
+  const data = { bo, maps: outMaps }
   saveVeto(data)
   io.emit("veto", data)
+  emitSeriesUpdate()
   res.json({ ok: true })
 })
 
@@ -532,11 +552,146 @@ function saveSettings(data) {
 app.get("/api/settings", (req, res) => res.json(loadSettings()))
 
 app.post("/api/settings", express.json(), (req, res) => {
-  const updated = { ...loadSettings(), ...req.body }
+  const body = { ...(req.body || {}) }
+  // Ручной счёт серии приходит для текущих сторон (CT:T) — сохраняем его
+  // по названиям команд, которые сейчас на этих сторонах
+  if (body.series && typeof body.series === "object") {
+    const names = currentTeamNames(gameState) || { ct: "CT", t: "T" }
+    body.series = { wins: {
+      [teamKey(names.ct)]: { name: names.ct, n: Math.max(0, Number(body.series.ct) || 0) },
+      [teamKey(names.t)]:  { name: names.t,  n: Math.max(0, Number(body.series.t)  || 0) },
+    } }
+  }
+  const updated = { ...loadSettings(), ...body }
   saveSettings(updated)
   io.emit("settings", updated)
+  emitSeriesUpdate()
   res.json({ ok: true })
 })
+
+// ── Series score (карты в серии), привязанный к названиям команд ─────────────
+// Названия берутся из GSI (map.team_ct.name / team_t.name — mp_teamname_1/2).
+// Счёт хранится по названию, поэтому после смены сторон он переезжает сам.
+// Если названий в игре нет — счёт привязан к стороне (ключи "CT" / "T").
+function teamKey(name) {
+  return String(name || "").trim().toLowerCase()
+}
+
+// ── Команды: название + логотип + состав (задаются в админке, блок «Команды») ──
+// По SteamID игроков определяем, какая команда сейчас за CT, а какая за T.
+// Счёт серии хранится по названию команды, поэтому после смены сторон
+// (перерыв, овертайм, новая карта) он переезжает сам. Логотип — тоже.
+function loadTeams() {
+  const teams = loadSettings().teams
+  return Array.isArray(teams) ? teams.filter(t => t && String(t.name || "").trim()) : []
+}
+
+function currentSides(allplayers) {
+  const ct = [], t = []
+  for (const [id, p] of Object.entries(allplayers || {})) {
+    const team = String(p?.team || "").toUpperCase()
+    const sid = String(p?.steamid || id)
+    if (team === "CT") ct.push(sid)
+    else if (team === "T" || team === "TERRORIST") t.push(sid)
+  }
+  return { ct, t }
+}
+
+// { ct: team|null, t: team|null } — какая из настроенных команд на какой стороне
+function sideTeams(state) {
+  const teams = loadTeams()
+  if (!teams.length) return null
+  const sides = currentSides(state?.allplayers)
+  const count = (sids, team) => {
+    const set = new Set((team.players || []).map(p => String(p.steamid || p)))
+    return sids.filter(s => set.has(s)).length
+  }
+  if (teams.length >= 2) {
+    const [a, b] = teams
+    const direct  = count(sides.ct, a) + count(sides.t, b)
+    const swapped = count(sides.ct, b) + count(sides.t, a)
+    if (!direct && !swapped) return null
+    return direct >= swapped ? { ct: a, t: b } : { ct: b, t: a }
+  }
+  const [a] = teams
+  const onCt = count(sides.ct, a), onT = count(sides.t, a)
+  if (!onCt && !onT) return null
+  return onCt >= onT ? { ct: a, t: null } : { ct: null, t: a }
+}
+
+// Названия команд на сторонах: по составам из админки → из игры (mp_teamname_1/2)
+function currentTeamNames(state) {
+  const st = sideTeams(state)
+  const gCt = String(state?.map?.team_ct?.name || "").trim()
+  const gT  = String(state?.map?.team_t?.name  || "").trim()
+  const ct = String(st?.ct?.name || "").trim() || gCt
+  const t  = String(st?.t?.name  || "").trim() || gT
+  if (!ct && !t) return null
+  return { ct: ct || "CT", t: t || "T" }
+}
+
+// Логотипы, которые следуют за командой (если у команды в админке выбран логотип)
+function sideLogos(state) {
+  const st = sideTeams(state)
+  return { ct: st?.ct?.logo || null, t: st?.t?.logo || null }
+}
+
+app.get("/api/teams", (req, res) => res.json(loadTeams()))
+
+app.post("/api/teams", express.json(), (req, res) => {
+  const list = Array.isArray(req.body?.teams) ? req.body.teams : []
+  const teams = list.slice(0, 2).map(t => ({
+    name: String(t?.name || "").trim(),
+    logo: t?.logo ? String(t.logo) : null,
+    players: (Array.isArray(t?.players) ? t.players : [])
+      .filter(p => p && p.steamid)
+      .map(p => ({ steamid: String(p.steamid), name: String(p.name || "") })),
+  }))
+  const updated = { ...loadSettings(), teams }
+  saveSettings(updated)
+  io.emit("settings", updated)
+  emitSeriesUpdate()
+  res.json({ ok: true })
+})
+
+function computeSeries(state) {
+  const names = currentTeamNames(state) || { ct: "CT", t: "T" }
+  const kCt = teamKey(names.ct), kT = teamKey(names.t)
+  const base = { ctName: names.ct, tName: names.t }
+
+  const manual = loadSettings().series
+  if (manual && typeof manual === "object" && manual.wins) {
+    return { ...base, ct: manual.wins[kCt]?.n || 0, t: manual.wins[kT]?.n || 0, source: "manual" }
+  }
+
+  const gCt = Number(state?.map?.team_ct?.matches_won_this_series) || 0
+  const gT  = Number(state?.map?.team_t?.matches_won_this_series)  || 0
+  if (gCt > 0 || gT > 0) return { ...base, ct: gCt, t: gT, source: "game" }
+
+  const res = { ...base, ct: 0, t: 0, source: "veto" }
+  for (const m of loadVeto().maps || []) {
+    if (m.status !== "played" || !Array.isArray(m.score)) continue
+    const a = Number(m.score[0]) || 0, b = Number(m.score[1]) || 0
+    if (a === b) continue
+    const teams = m.teams || { ct: "CT", t: "T" }
+    const winner = teamKey(a > b ? teams.ct : teams.t)
+    if (winner === kCt) res.ct++
+    else if (winner === kT) res.t++
+  }
+  return res
+}
+
+function emitSeriesUpdate() {
+  if (!gameState || !Object.keys(gameState).length) return
+  gameState = { ...gameState, series: computeSeries(gameState), side_logos: sideLogos(gameState) }
+  io.emit("state", gameState)
+}
+
+app.get("/api/series", (req, res) => res.json(computeSeries(gameState || {})))
+
+// ── Автообсерв (server/autoobs/) ───────────────────────────────────────
+const autoObs = createAutoObserve({ baseDir: BASE_DIR, loadSettings, saveSettings, io })
+autoObs.registerRoutes(app, express)
 
 // ── Webcam mappings (steamid64 → vdo.ninja URL) ──────────────────────────────
 const WEBCAMS_FILE = path.join(BASE_DIR, "webcams.json")
@@ -651,6 +806,7 @@ app.post("/api/player-cards", express.json(), (req, res) => {
   }
   savePlayerCards(current)
   io.emit("player-cards", current)
+  if (team_logos) emitSeriesUpdate()
   res.json({ ok: true })
 })
 
