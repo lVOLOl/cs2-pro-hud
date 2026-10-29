@@ -6,7 +6,8 @@
 //! Status lines go to stderr as JSON: {"bot":0,"state":"connected","channel":"…"}
 
 use std::cell::RefCell;
-use std::io::Write;
+use std::io::{Read, Write};
+use std::sync::mpsc::{sync_channel, SyncSender};
 use std::rc::Rc;
 use std::time::Duration;
 
@@ -86,8 +87,13 @@ fn load_identity(path: &str, bot: usize) -> Identity {
 	id
 }
 
-async fn run_bot(bot: usize, args: Args, audio: Rc<RefCell<AudioHandler>>) {
+async fn run_bot(bot: usize, args: Args, audio: Rc<RefCell<AudioHandler>>, mut shutdown: tokio::sync::watch::Receiver<bool>) {
+	// второй бот стартует чуть позже, чтобы не заходить с одного IP одновременно
+	tokio::time::sleep(Duration::from_secs(3 * bot as u64)).await;
+	let mut fails: u32 = 0;
 	loop {
+		let started = std::time::Instant::now();
+		let banned;
 		let mut opts = Connection::build(args.address.clone())
 			.name(args.names[bot].clone())
 			.identity(load_identity(&args.ids_file, bot))
@@ -100,11 +106,24 @@ async fn run_bot(bot: usize, args: Args, audio: Rc<RefCell<AudioHandler>>) {
 		}
 		status(bot, "connecting", "");
 		match opts.connect() {
-			Err(e) => status(bot, "error", &format!(",\"error\":\"{}\"", esc(&e.to_string()))),
+			Err(e) => {
+				let msg = e.to_string();
+				banned = msg.contains("Banned");
+				status(bot, if banned { "banned" } else { "error" }, &format!(",\"error\":\"{}\"", esc(&msg)));
+			}
 			Ok(mut con) => {
 				let mut reported = false;
 				let reason = loop {
-					let item = { con.events().next().await };
+					let item = tokio::select! {
+						item = async { con.events().next().await } => item,
+						_ = shutdown.changed() => {
+							// сервер HUD закрылся — выходим вежливо, чтобы TS не держал «мёртвых» ботов
+							let _ = con.disconnect(DisconnectOptions::new().message("HUD closed"));
+							let _ = tokio::time::timeout(Duration::from_secs(2), con.events().for_each(|_| future::ready(()))).await;
+							status(bot, "off", "");
+							return;
+						}
+					};
 					match item {
 						None => break "closed".to_string(),
 						Some(Err(e)) => break e.to_string(),
@@ -137,15 +156,22 @@ async fn run_bot(bot: usize, args: Args, audio: Rc<RefCell<AudioHandler>>) {
 					}
 				};
 				audio.borrow_mut().reset();
-				status(bot, "disconnected", &format!(",\"error\":\"{}\"", esc(&reason)));
+				banned = reason.contains("Banned");
+				status(bot, if banned { "banned" } else { "disconnected" }, &format!(",\"error\":\"{}\"", esc(&reason)));
 				let _ = con.disconnect(DisconnectOptions::new());
 			}
 		}
-		tokio::time::sleep(Duration::from_secs(3)).await;
+		// Повторы с нарастающей паузой, чтобы антифлуд сервера не банил IP:
+		// 10 с, 20 с, 40 с … до 5 минут; после бана — 10 минут.
+		if started.elapsed() > Duration::from_secs(120) { fails = 0; }
+		fails = fails.saturating_add(1);
+		let wait = if banned { 600 } else { (10u64 << (fails - 1).min(5)).min(300) };
+		status(bot, if banned { "banned" } else { "waiting" }, &format!(",\"retry_in\":{}", wait));
+		tokio::time::sleep(Duration::from_secs(wait)).await;
 	}
 }
 
-async fn mixer(handlers: [Rc<RefCell<AudioHandler>>; 2]) {
+async fn mixer(handlers: [Rc<RefCell<AudioHandler>>; 2], out: SyncSender<Vec<u8>>) {
 	let mut tick = tokio::time::interval(Duration::from_millis(20));
 	tick.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Burst);
 	let mut stereo = vec![0f32; FRAME * 2];
@@ -162,10 +188,9 @@ async fn mixer(handlers: [Rc<RefCell<AudioHandler>>; 2]) {
 				let v = (m * 32767.0) as i16;
 				frame[2 + 2 * i..4 + 2 * i].copy_from_slice(&v.to_le_bytes());
 			}
-			let mut out = std::io::stdout().lock();
-			if out.write_all(&frame).and_then(|_| out.flush()).is_err() {
-				std::process::exit(0); // parent closed the pipe
-			}
+			// запись в stdout идёт в отдельном потоке: если HUD не успевает читать,
+			// кадр просто теряется, а соединение с TS (пинги) не замирает
+			let _ = out.try_send(frame.clone());
 		}
 	}
 }
@@ -177,12 +202,34 @@ async fn main() {
 		eprintln!("usage: ts-listener --address host[:port] --channel-a \"Name\" --channel-b \"Name\" [--password p] [--name-a n] [--name-b n] [--ids file]");
 		std::process::exit(2);
 	}
+	// поток записи в stdout
+	let (tx, rx) = sync_channel::<Vec<u8>>(100);
+	std::thread::spawn(move || {
+		let mut out = std::io::stdout();
+		for frame in rx {
+			if out.write_all(&frame).and_then(|_| out.flush()).is_err() {
+				std::process::exit(0); // HUD закрыл канал
+			}
+		}
+	});
+
+	// stdin закрылся (HUD остановлен или перезапускает бота) → вежливый выход
+	let (stop_tx, stop_rx) = tokio::sync::watch::channel(false);
+	std::thread::spawn(move || {
+		let mut buf = [0u8; 64];
+		let mut stdin = std::io::stdin();
+		while let Ok(n) = stdin.read(&mut buf) { if n == 0 { break; } }
+		let _ = stop_tx.send(true);
+		std::thread::sleep(Duration::from_secs(3));
+		std::process::exit(0);
+	});
+
 	let handlers = [Rc::new(RefCell::new(AudioHandler::new())), Rc::new(RefCell::new(AudioHandler::new()))];
 	let local = LocalSet::new();
 	for bot in 0..2 {
 		if args.channels[bot].is_empty() { continue; }
-		local.spawn_local(run_bot(bot, args.clone(), handlers[bot].clone()));
+		local.spawn_local(run_bot(bot, args.clone(), handlers[bot].clone(), stop_rx.clone()));
 	}
-	local.spawn_local(mixer(handlers.clone()));
+	local.spawn_local(mixer(handlers.clone(), tx));
 	local.await;
 }

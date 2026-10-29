@@ -1221,7 +1221,8 @@ async function setWebcamDelay(sec) {
 
 // ── TeamSpeak voice ──────────────────────────────────────────────────────────
 const TS_STATE = { connecting: "подключается", connected: "в канале", reconnecting: "переподключается",
-  disconnected: "отключён", stopped: "остановлен", error: "ошибка", off: "выкл" }
+  disconnected: "отключён", stopped: "остановлен", error: "ошибка", off: "выкл",
+  waiting: "ждёт повтора", banned: "забанен сервером" }
 let _tsLoaded = false
 
 function _tsApply(data) {
@@ -1249,10 +1250,12 @@ function _tsApply(data) {
   }
   const bot = (b, name) => {
     if (!b || b.state === "off") return ""
-    const color = b.state === "connected" ? "var(--green)" : b.state === "error" || b.state === "disconnected" ? "#ef4444" : "var(--muted)"
+    const color = b.state === "connected" ? "var(--green)" : ["error", "disconnected", "banned"].includes(b.state) ? "#ef4444" : "var(--muted)"
     const ch = b.state === "connected" && b.channel ? " «" + escHtml(b.channel) + "»" : ""
     const err = b.error && b.state !== "connected" ? " — " + escHtml(b.error) : ""
-    return `<span style="color:${color}">${escHtml(name)}: ${TS_STATE[b.state] || b.state}${ch}${err}</span>`
+    const left = b.retry_at ? Math.max(0, Math.round((b.retry_at - Date.now()) / 1000)) : 0
+    const retry = left && b.state !== "connected" ? ` (повтор через ${left} с)` : ""
+    return `<span style="color:${color}">${escHtml(name)}: ${TS_STATE[b.state] || b.state}${ch}${retry}${err}</span>`
   }
   document.getElementById("ts_bots").innerHTML = [bot(s.bots?.[0], n1), bot(s.bots?.[1], n2)].filter(Boolean).join(" &nbsp;·&nbsp; ")
   const live = { a: n1, b: n2, both: "обе команды", off: "тишина" }[s.live] || "—"

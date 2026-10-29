@@ -46,10 +46,16 @@ function createTsAudio({ baseDir, loadSettings, saveSettings, io, getState, load
   }
 
   // ── процесс бота ──────────────────────────────────────────────────────────
+  // Останавливаем бота вежливо: закрываем ему stdin, он сам выходит с сервера TS.
+  // Если за 4 с не вышел — убиваем. Иначе TS держит «мёртвых» ботов до таймаута.
   function stopProc() {
     clearTimeout(restartTimer)
-    if (proc) { try { proc.kill() } catch {} }
+    const p = proc
     proc = null
+    if (!p) return
+    try { p.stdin.end() } catch {}
+    const t = setTimeout(() => { try { p.kill() } catch {} }, 4000)
+    p.once("exit", () => clearTimeout(t))
   }
 
   function ensureProc() {
@@ -102,7 +108,14 @@ function createTsAudio({ baseDir, loadSettings, saveSettings, io, getState, load
         try {
           const m = JSON.parse(line)
           if (m.bot === 0 || m.bot === 1) {
-            bots[m.bot] = { state: m.state, channel: m.channel ?? bots[m.bot].channel, error: m.error }
+            const prev = bots[m.bot] || {}
+            bots[m.bot] = {
+              state: m.state,
+              channel: m.channel ?? prev.channel,
+              // «waiting»/«banned» без текста ошибки — оставляем прошлую причину
+              error: m.error ?? (m.state === "waiting" || m.state === "banned" ? prev.error : undefined),
+              retry_at: m.retry_in ? Date.now() + m.retry_in * 1000 : undefined,
+            }
             emitStatus()
           }
         } catch { console.log("[ts]", line) }
@@ -118,7 +131,8 @@ function createTsAudio({ baseDir, loadSettings, saveSettings, io, getState, load
       proc = null
       bots = bots.map(b => b.state === "off" ? b : { ...b, state: "stopped" })
       emitStatus()
-      restartTimer = setTimeout(() => { restartTimer = null; procKey = ""; ensureProc() }, 5000)
+      // перезапуск не чаще раза в 30 с, чтобы не флудить сервер TS подключениями
+      restartTimer = setTimeout(() => { restartTimer = null; procKey = ""; ensureProc() }, 30000)
     })
   }
 
@@ -225,8 +239,8 @@ function createTsAudio({ baseDir, loadSettings, saveSettings, io, getState, load
     })
   }
 
-  // при закрытии сервера бот тоже завершится: у него закроется stdout
-  process.on("exit", stopProc)
+  // при закрытии сервера у бота закроется stdin — он сам выйдет с сервера TS
+  process.on("exit", () => { try { proc && proc.stdin.end() } catch {} })
 
   ensureProc()
   return { registerRoutes, status }
