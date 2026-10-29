@@ -255,6 +255,7 @@ body{
 
 
 <script src="http://localhost:3000/socket.io.min.js"></script>
+<script src="http://localhost:3000/webcam-delay.js"></script>
 <script>
 // ── Canvas background ─────────────────────────────────────────────────────────
 ;(function () {
@@ -355,6 +356,8 @@ let vetoMaps     = []
 let lastState    = null
 let curWebcamUrl = null
 let curSteamid   = null
+let webcamDelay  = 0       // seconds, from settings.webcam_delay
+let settingsLoaded = false
 
 // ── Round timer ───────────────────────────────────────────────────────────────
 let _timerEnd   = 0
@@ -474,9 +477,9 @@ function update(state) {
     fRow.style.display = 'flex'
   } else { fRow.style.display = 'none' }
 
-  const webcamUrl = webcams[player.steamid]||null
+  const webcamUrl = webcams[player.steamid] ? buildWebcamUrl(webcams[player.steamid], webcamDelay) : null
   const box       = document.getElementById('webcam_box')
-  if (webcamUrl!==curWebcamUrl||player.steamid!==curSteamid) {
+  if (settingsLoaded && (webcamUrl!==curWebcamUrl||player.steamid!==curSteamid)) {
     curWebcamUrl=webcamUrl; curSteamid=player.steamid
     if (webcamUrl) {
       document.getElementById('webcam_frame').src=webcamUrl
@@ -495,6 +498,7 @@ socket.on('state',        s => update(s))
 socket.on('veto',         d => { vetoMaps=d.maps||[]; if(lastState)update(lastState) })
 socket.on('player-cards', d => { config=d;            if(lastState)update(lastState) })
 socket.on('webcams',      d => { webcams=d;            if(lastState)update(lastState) })
+socket.on('settings',     s => { webcamDelay=Number(s.webcam_delay)||0; settingsLoaded=true; if(lastState)update(lastState) })
 
 ;(async()=>{
   try {

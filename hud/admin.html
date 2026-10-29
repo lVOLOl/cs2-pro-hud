@@ -287,6 +287,65 @@
     <button class="bo-btn" id="grenades_off" onclick="setGrenades(false)">Выкл</button>
     <span style="font-size:12px;color:var(--muted);margin-left:8px">Требует CSSharp плагин</span>
   </div>
+
+  <div style="display:flex;align-items:center;gap:16px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Задержка вебок</span>
+    <button class="bo-btn" id="wdelay_0"   onclick="setWebcamDelay(0)">Нет</button>
+    <button class="bo-btn" id="wdelay_130" onclick="setWebcamDelay(130)">130 с</button>
+    <button class="bo-btn" id="wdelay_180" onclick="setWebcamDelay(180)">180 с</button>
+    <input class="text-input" id="wdelay_custom" type="number" min="0" max="180" placeholder="сек" style="width:70px">
+    <button class="bo-btn" onclick="setWebcamDelay(document.getElementById('wdelay_custom').value)">OK</button>
+    <span style="font-size:12px;color:var(--muted);margin-left:8px">Только vdo.ninja, без звука, макс. 180 с. Игрок шлёт с &amp;chunked=1500</span>
+  </div>
+</div>
+
+<!-- ── TEAMSPEAK VOICE ──────────────────────────────────────────── -->
+<div class="manual-section" style="margin-top:40px">
+  <div class="section-title">Голос TeamSpeak</div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Боты</span>
+    <button class="bo-btn" id="ts_on"  onclick="tsSave({enabled:true})">Вкл</button>
+    <button class="bo-btn" id="ts_off" onclick="tsSave({enabled:false})">Выкл</button>
+    <span id="ts_bots" style="font-size:13px;margin-left:8px"></span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px;flex-wrap:wrap">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Сервер</span>
+    <input class="text-input" id="ts_address" placeholder="Team Speak Domain" style="width:200px">
+    <input class="text-input" id="ts_password" type="password" placeholder="пароль сервера (если есть)" style="width:190px">
+    <span style="flex-basis:100%;height:0"></span>
+    <span style="font-size:13px;color:var(--muted);min-width:130px" id="ts_lbl_a">Канал команды 1</span>
+    <input class="text-input" id="ts_channel_a" placeholder="Название канала" style="width:200px">
+    <span style="font-size:13px;color:var(--muted)" id="ts_lbl_b">Канал команды 2</span>
+    <input class="text-input" id="ts_channel_b" placeholder="Название канала" style="width:200px">
+    <button class="btn-save" onclick="tsSaveConn()">Сохранить</button>
+    <span style="flex-basis:100%;font-size:12px;color:var(--muted)">Вложенный канал пишется с родителем через «/», например <code>Турнир/Команда 1</code>. Команда 1 и 2 — по порядку из блока «Команды».</span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">В эфире</span>
+    <button class="bo-btn" id="ts_mode_auto" onclick="tsSave({mode:'auto'})">Авто</button>
+    <button class="bo-btn" id="ts_mode_a"    onclick="tsSave({mode:'a'})">Команда 1</button>
+    <button class="bo-btn" id="ts_mode_b"    onclick="tsSave({mode:'b'})">Команда 2</button>
+    <button class="bo-btn" id="ts_mode_both" onclick="tsSave({mode:'both'})">Обе</button>
+    <button class="bo-btn" id="ts_mode_off"  onclick="tsSave({mode:'off'})">Выкл</button>
+    <span id="ts_live" style="font-size:13px;font-weight:700;margin-left:8px"></span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px">
+    <span style="font-size:13px;color:var(--muted);min-width:130px">Громкость</span>
+    <input type="range" id="ts_volume" min="0" max="200" step="5" style="width:180px" oninput="document.getElementById('ts_volume_val').textContent=this.value+'%'" onchange="tsSave({volume:this.value/100})">
+    <span id="ts_volume_val" style="font-size:13px;min-width:44px"></span>
+    <span style="font-size:13px;color:var(--muted);margin-left:16px">Сдвиг</span>
+    <input class="text-input" id="ts_offset" type="number" step="100" style="width:90px" onchange="tsSave({offset_ms:this.value})">
+    <span style="font-size:12px;color:var(--muted)">мс к задержке вебок</span>
+    <span id="ts_delay" style="font-size:12px;color:var(--muted);margin-left:auto"></span>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:12px;margin-top:8px;background:var(--panel);border:1px solid var(--border);border-radius:var(--radius);padding:12px 16px;max-width:860px;font-size:12px;color:var(--muted)">
+    В OBS: Browser Source <code style="margin:0 4px">http://localhost:3000/ts-audio.html</code> и галочка «Управлять аудио через OBS». Авто — звук команды игрока, за которым идёт обсервер.
+  </div>
 </div>
 
 <!-- ── AUTO OBSERVE ───────────────────────────────────────────── -->
@@ -1142,6 +1201,90 @@ async function setSeriesAuto() {
   refreshSeriesView()
 }
 
+function _applyWebcamDelayUI(sec) {
+  sec = Number(sec) || 0
+  for (const v of [0, 130, 180]) document.getElementById("wdelay_" + v)?.classList.toggle("active", sec === v)
+  const inp = document.getElementById("wdelay_custom")
+  if (inp) inp.value = [0, 130, 180].includes(sec) ? "" : sec
+}
+
+async function setWebcamDelay(sec) {
+  sec = Math.max(0, Math.min(180, Math.round(Number(sec) || 0)))
+  _applyWebcamDelayUI(sec)
+  await fetch("/api/settings", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ webcam_delay: sec })
+  })
+  showStatus(sec ? `Задержка вебок: ${sec} с (буфер наберётся через ${sec} с)` : "Задержка вебок выключена")
+}
+
+// ── TeamSpeak voice ──────────────────────────────────────────────────────────
+const TS_STATE = { connecting: "подключается", connected: "в канале", reconnecting: "переподключается",
+  disconnected: "отключён", stopped: "остановлен", error: "ошибка", off: "выкл" }
+let _tsLoaded = false
+
+function _tsApply(data) {
+  const c = data.config || {}, s = data.status || {}
+  document.getElementById("ts_on")?.classList.toggle("active", !!c.enabled)
+  document.getElementById("ts_off")?.classList.toggle("active", !c.enabled)
+  for (const m of ["auto", "a", "b", "both", "off"])
+    document.getElementById("ts_mode_" + m)?.classList.toggle("active", (c.mode || "auto") === m)
+  const names = s.teams || []
+  const n1 = names[0] || "Команда 1", n2 = names[1] || "Команда 2"
+  document.getElementById("ts_mode_a").textContent = n1
+  document.getElementById("ts_mode_b").textContent = n2
+  document.getElementById("ts_lbl_a").textContent = "Канал: " + n1
+  document.getElementById("ts_lbl_b").textContent = "Канал: " + n2
+  if (!_tsLoaded) {
+    _tsLoaded = true
+    document.getElementById("ts_address").value = c.address || ""
+    document.getElementById("ts_password").value = c.password || ""
+    document.getElementById("ts_channel_a").value = c.channel_a || ""
+    document.getElementById("ts_channel_b").value = c.channel_b || ""
+    const vol = Math.round((c.volume == null ? 1 : c.volume) * 100)
+    document.getElementById("ts_volume").value = vol
+    document.getElementById("ts_volume_val").textContent = vol + "%"
+    document.getElementById("ts_offset").value = c.offset_ms || 0
+  }
+  const bot = (b, name) => {
+    if (!b || b.state === "off") return ""
+    const color = b.state === "connected" ? "var(--green)" : b.state === "error" || b.state === "disconnected" ? "#ef4444" : "var(--muted)"
+    const ch = b.state === "connected" && b.channel ? " «" + escHtml(b.channel) + "»" : ""
+    const err = b.error && b.state !== "connected" ? " — " + escHtml(b.error) : ""
+    return `<span style="color:${color}">${escHtml(name)}: ${TS_STATE[b.state] || b.state}${ch}${err}</span>`
+  }
+  document.getElementById("ts_bots").innerHTML = [bot(s.bots?.[0], n1), bot(s.bots?.[1], n2)].filter(Boolean).join(" &nbsp;·&nbsp; ")
+  const live = { a: n1, b: n2, both: "обе команды", off: "тишина" }[s.live] || "—"
+  document.getElementById("ts_live").textContent = c.enabled ? "Сейчас: " + live : ""
+  const buf = (s.buffered_s || []).join(" / ")
+  document.getElementById("ts_delay").textContent = "задержка " + Math.round((s.delay_ms || 0) / 1000) + " с · в буфере " + buf + " с"
+}
+
+async function tsLoad() {
+  try { _tsApply(await fetch("/api/ts").then(r => r.json())) } catch {}
+}
+
+async function tsSave(patch) {
+  try {
+    await fetch("/api/ts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) })
+    await tsLoad()
+    showStatus("TeamSpeak: сохранено")
+  } catch { showStatus("TeamSpeak: ошибка сохранения", "error") }
+}
+
+function tsSaveConn() {
+  tsSave({
+    address:   document.getElementById("ts_address").value,
+    password:  document.getElementById("ts_password").value,
+    channel_a: document.getElementById("ts_channel_a").value,
+    channel_b: document.getElementById("ts_channel_b").value,
+  })
+}
+
+tsLoad()
+setInterval(tsLoad, 2000)
+
 async function loadSettings() {
   try {
     const res = await fetch("/api/settings")
@@ -1149,6 +1292,7 @@ async function loadSettings() {
     _applyObsModeUI(s.obs_mode || "detail")
     _applyGrenadesUI(s.show_grenades !== false)
     _applyCardStyleUI(s.card_style || "classic")
+    _applyWebcamDelayUI(s.webcam_delay)
     _applySeriesUI(s.series)
     refreshSeriesView()
   } catch {}

@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>TS Audio</title>
+<style>
+  html, body { margin: 0; background: transparent; overflow: hidden; font-family: system-ui, sans-serif; }
+  #info { display: none; position: fixed; left: 12px; top: 12px; padding: 10px 14px; border-radius: 8px;
+          background: rgba(7,11,20,.85); color: #fff; font-size: 14px; line-height: 1.5; }
+  body.debug #info { display: block; }
+  #unlock { display: none; position: fixed; inset: 0; align-items: center; justify-content: center;
+            background: rgba(7,11,20,.85); color: #fff; font-size: 22px; cursor: pointer; }
+  .meter { display: inline-block; width: 120px; height: 8px; background: #222; border-radius: 4px; vertical-align: middle; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; background: #22c55e; }
+</style>
+</head>
+<body>
+<!-- Browser Source в OBS: http://localhost:3000/ts-audio.html
+     В свойствах источника включить «Управлять аудио через OBS».
+     ?debug=1 — показать статус на странице. -->
+<div id="info">
+  <div>Команда 1: <span class="meter"><i id="m0"></i></span> <span id="g0"></span></div>
+  <div>Команда 2: <span class="meter"><i id="m1"></i></span> <span id="g1"></span></div>
+  <div id="st"></div>
+</div>
+<div id="unlock">Нажми, чтобы включить звук TS</div>
+
+<script src="/socket.io.min.js"></script>
+<script>
+if (new URLSearchParams(location.search).has("debug")) document.body.classList.add("debug")
+
+// Плеер: две очереди (по команде), небольшой джиттер-буфер, плавная смена громкости
+const WORKLET = `
+class TsPlayer extends AudioWorkletProcessor {
+  constructor() {
+    super()
+    this.q = [[], []]; this.off = [0, 0]; this.size = [0, 0]
+    this.started = [false, false]
+    this.gain = [0, 0]; this.target = [0, 0]
+    this.level = [0, 0]; this.n = 0
+    this.port.onmessage = e => {
+      const m = e.data
+      if (m.pcm) { this.q[m.team].push(m.pcm); this.size[m.team] += m.pcm.length }
+      if (m.gains) this.target = m.gains
+    }
+  }
+  process(inputs, outputs) {
+    const out = outputs[0][0]
+    out.fill(0)
+    const START = 48000 * 0.12, MAX = 48000 * 0.5
+    for (let t = 0; t < 2; t++) {
+      const q = this.q[t]
+      if (!this.started[t]) { if (this.size[t] >= START) this.started[t] = true; else continue }
+      while (this.size[t] > MAX && q.length > 1) {        // догоняем, если накопилось
+        this.size[t] -= q[0].length - this.off[t]; q.shift(); this.off[t] = 0
+      }
+      let peak = 0
+      for (let i = 0; i < out.length; i++) {
+        this.gain[t] += (this.target[t] - this.gain[t]) * 0.002
+        if (!q.length) { this.started[t] = false; break }   // недобор — копим заново
+        const s = q[0][this.off[t]++]
+        if (this.off[t] >= q[0].length) { q.shift(); this.off[t] = 0 }
+        this.size[t]--
+        const v = s * this.gain[t]
+        out[i] += v
+        const a = Math.abs(v); if (a > peak) peak = a
+      }
+      this.level[t] = Math.max(peak, this.level[t] * 0.95)
+    }
+    for (let c = 1; c < outputs[0].length; c++) outputs[0][c].set(out)
+    if (++this.n % 20 === 0) this.port.postMessage({ level: this.level })
+    return true
+  }
+}
+registerProcessor("ts-player", TsPlayer)
+`
+
+let ctx, node
+const st = document.getElementById("st")
+
+async function initAudio() {
+  ctx = new AudioContext({ sampleRate: 48000 })
+  const url = URL.createObjectURL(new Blob([WORKLET], { type: "application/javascript" }))
+  await ctx.audioWorklet.addModule(url)
+  node = new AudioWorkletNode(ctx, "ts-player", { numberOfInputs: 0, outputChannelCount: [2] })
+  node.connect(ctx.destination)
+  node.port.onmessage = e => {
+    if (!e.data.level) return
+    e.data.level.forEach((l, i) => { document.getElementById("m" + i).style.width = Math.min(100, l * 300) + "%" })
+  }
+  const unlock = document.getElementById("unlock")
+  const check = () => { unlock.style.display = ctx.state === "suspended" ? "flex" : "none" }
+  unlock.onclick = () => ctx.resume().then(check)
+  ctx.onstatechange = check
+  setTimeout(check, 500)
+}
+
+const socket = io({ transports: ["websocket", "polling"] })
+socket.on("connect", () => socket.emit("ts-join"))
+
+socket.on("ts-pcm", (team, data) => {
+  if (!node) return
+  const i16 = new Int16Array(data instanceof ArrayBuffer ? data : data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength))
+  const f32 = new Float32Array(i16.length)
+  for (let i = 0; i < i16.length; i++) f32[i] = i16[i] / 32768
+  node.port.postMessage({ team, pcm: f32 }, [f32.buffer])
+})
+
+socket.on("ts-mix", g => {
+  if (node) node.port.postMessage({ gains: [g.a, g.b] })
+  document.getElementById("g0").textContent = g.a ? "в эфире" : ""
+  document.getElementById("g1").textContent = g.b ? "в эфире" : ""
+  st.textContent = "Режим: " + ({ auto: "авто", a: "команда 1", b: "команда 2", both: "обе", off: "выкл" }[g.mode] || g.mode)
+  window._lastMix = g
+})
+
+initAudio().then(() => { if (window._lastMix) node.port.postMessage({ gains: [window._lastMix.a, window._lastMix.b] }) })
+</script>
+</body>
+</html>

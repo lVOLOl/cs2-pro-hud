@@ -2,11 +2,19 @@
 
 Оверлей для трансляций CS2 в стиле профессиональных турниров. Данные берутся из официального CS2 Game State Integration (GSI): без читов, инъекций и доступа к памяти игры.
 
-Версия: **1.09**
+Версия: **1.09.2**
 
 ---
 
-## Что нового в 1.09
+## Что нового в 1.09.2
+
+- **Задержка вебок** — вебки VDO.Ninja можно задержать на время задержки трансляции (130 / 180 с и любое значение до 180 с). Настраивается одной кнопкой в админке, работает в основном HUD, Player Card и на страницах команд.
+- **Страницы вебок команд** — `/team1` и `/team2`: пять вебок команды (3 + 2) с никами, сверху название турнира, счёт, карта и таймер.
+- **Голос TeamSpeak с задержкой** — два бота слушают каналы команд на сервере TS3, звук идёт в OBS с той же задержкой, что и картинка. Переключение команд вручную или автоматически по игроку в кадре.
+- **Вебки в Player Card** теперь обновляются сразу после изменения привязок в админке, без перезагрузки источника.
+- Если в админку по ошибке вставить ссылку `?push=…`, HUD сам превратит её в ссылку просмотра.
+
+## Что было в 1.09
 
 - **BLAST-вариант интерфейса** — включается в админке: вертикальные карточки игроков в ряд снизу, компактное табло, крылья бомбы/дефьюза и ROUND WIN.
 - **Компактное табло** — номер раунда, овертайм, отсечки выигранных карт в BO3/BO5, «горящая» полоска стороны при стрике 5+ раундов.
@@ -66,8 +74,32 @@
 - **Статистика раунда** — в фризтайм: K / A / D, K/D, ADR.
 - **Миникарта** — все соревновательные карты, два этажа Nuke, направление взгляда, номера клавиш игроков, бомба, крестики смерти, гранаты (с CSSharp-плагином).
 - **Оверлеи** — TACTICAL PAUSE, окно DEFUSING (Classic), лента убийств.
-- **Вебки** — SteamID64 → URL (VDO.ninja и т. п.), предзагрузка, мгновенное переключение.
 - **Player Card** — отдельная карточка игрока для стримерских раскладок: `http://localhost:3000/player/1` … `/player/10`.
+- **Вебки команды** — `http://localhost:3000/team1` (слоты 1–5) и `/team2` (слоты 6–10): пять вебок в два ряда (3 + 2), ник под каждой, анимированный фон как у Player Card. Погибший игрок до конца раунда отмечается тусклым ником.
+
+### Вебки и задержка
+- Привязка SteamID64 → URL вебки (VDO.ninja или любой источник для iframe): админка → **Webcam Bindings**.
+- Основной HUD заранее загружает вебки всех привязанных игроков, поэтому переключение между ними мгновенное.
+- **Задержка** (админка → **Display Modes → Задержка вебок**): Нет / 130 с / 180 с / своё значение, максимум 180 с. Используется режим VDO.Ninja `chunked`: видео копится в буфере и показывается с задержкой. Звук с вебок в этом режиме не передаётся.
+- После включения задержки или перезагрузки источника вебка 130–180 с остаётся чёрной, пока набирается буфер. Во время матча источники с вебками лучше не обновлять.
+
+**Ссылки.** Игрок открывает ссылку на отправку, в админку вставляется ссылка на просмотр с тем же ID:
+
+| Кому | Ссылка |
+|---|---|
+| Игроку (Chrome / Edge / Яндекс, не Firefox) | `https://vdo.ninja/?push=ID&chunked=1500&webcam` |
+| В админку | `https://vdo.ninja/?view=ID` |
+
+`chunked=1500` — битрейт в кбит/с: 1000 для слабого интернета, 2500 для крупных вебок. Если вебки подлагивают в OBS, игроку можно добавить `&chunkcodec=vp8` — этот кодек легче декодируется. У каждого игрока должен быть свой ID.
+
+### Голос TeamSpeak
+- `ts/ts-listener.exe` подключается к серверу TeamSpeak 3 двумя ботами («HUD Listener 1» и «HUD Listener 2»), по одному в канал каждой команды. Сервер HUD запускает его сам.
+- Звук обеих команд постоянно держится в буфере на время задержки вебок (плюс сдвиг в мс для точной подгонки), поэтому переключение между командами мгновенное.
+- **Режимы:** Авто (команда игрока, за которым идёт обсервер, по составам из блока **Команды**), Команда 1, Команда 2, Обе, Выкл. Есть громкость до 200 %.
+- **В OBS:** Browser Source `http://localhost:3000/ts-audio.html` с включённой галочкой «Управлять аудио через OBS». Для отладки — `ts-audio.html?debug=1` (индикаторы уровня).
+- Настройка: админка → **Голос TeamSpeak**: адрес сервера, пароль (если есть), названия каналов команд (вложенный канал — через `/`, например `Турнир/Команда 1`) → «Сохранить» → «Вкл».
+- Ключи ботов хранятся в `ts/ts-identities.txt` (не коммитится), чтобы у ботов не менялся UID и им можно было выдать права на сервере.
+- Исходники бота — `ts-listener/` (Rust, библиотека [tsclientlib](https://github.com/ReSpeak/tsclientlib)). Игроков стоит заранее предупредить, что переговоры идут в эфир.
 
 ---
 
@@ -104,7 +136,7 @@
 
 ## Установка и запуск
 
-**Требования:** Node.js 18+ (или готовый `.exe` из релиза).
+**Требования:** Node.js 22+ (или готовый `.exe` из релиза).
 
 ```bash
 npm install
@@ -115,16 +147,21 @@ npm start
 
 ### Готовый .exe
 
-В папке релиза лежат `cs2-pro-hud.exe` и всё, что ему нужно рядом: `hud/`, `cfg/`, `tools/`, `docs/` и JSON-файлы настроек. Запуск — двойным щелчком по `cs2-pro-hud.exe`.
+В архиве релиза лежат `cs2-pro-hud.exe` и всё, что ему нужно рядом: `hud/`, `cfg/`, `tools/`, `docs/`, `ts/` и JSON-файлы настроек. Распаковать в любую папку и запустить `cs2-pro-hud.exe` двойным щелчком.
 
-Собрать самому:
+Steam API Key в архив не входит: вставьте его в админке или положите свой `.env` рядом с `.exe`.
+
+`.exe` собирается как Node.js Single Executable Application (Node 22): сервер собирается в один файл через esbuild и встраивается в официальный `node.exe`:
 
 ```bash
-npm install -g pkg
-pkg server/server.js --targets node18-win-x64 --output dist/cs2-pro-hud.exe
+npm install
+npx esbuild server/server.js --bundle --platform=node --target=node22 --outfile=build/server.js --external:bufferutil --external:utf-8-validate
+node --experimental-sea-config sea-config.json           # → build/sea-prep.blob
+copy node.exe dist\cs2-pro-hud.exe                       # node.exe той же версии, что собирала blob
+npx postject dist/cs2-pro-hud.exe NODE_SEA_BLOB build/sea-prep.blob --sentinel-fuse NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2
 ```
 
-Рядом с `.exe` должны лежать папки `hud/`, `cfg/`, `tools/` и файлы `settings.json`, `player-cards.json`, `veto.json`, `webcams.json`, `autoobs.json` — сервер читает их из папки, где лежит `.exe`.
+Рядом с `.exe` должны лежать папки `hud/`, `cfg/`, `tools/`, `ts/` и файлы `settings.json`, `player-cards.json`, `veto.json`, `webcams.json`, `autoobs.json`: сервер читает их из папки, где лежит `.exe`.
 
 ---
 
@@ -158,13 +195,23 @@ STEAM_API_KEY=ВАШ_32_СИМВОЛЬНЫЙ_КЛЮЧ
 | Ширина × высота | 1920 × 1080 |
 | Пользовательский CSS | `body { background: transparent !important; }` |
 
+Остальные источники:
+
+| Что | URL | Заметки |
+|---|---|---|
+| Карточка игрока | `http://localhost:3000/player/1` … `/player/10` | |
+| Вебки команды 1 / 2 | `http://localhost:3000/team1`, `/team2` | любой размер, раскладка подстраивается |
+| Голос TeamSpeak | `http://localhost:3000/ts-audio.html` | «Управлять аудио через OBS» |
+
 ### 4. Перед матчем (админка)
 
 1. **Команды** — названия, логотипы, составы («Заполнить из текущей игры» → вписать названия → «Сохранить команды»).
 2. **Map Veto** — формат BO1/BO3/BO5, карты, статусы, счёт сыгранных, **Пик** (команда или десайдер) → «Опубликовать».
 3. **Счёт серии** — «Авто» или вручную.
 4. **Название турнира** — строки 1 и 2 для панели над миникартой и Player Card.
-5. **Display Modes** — Classic / BLAST, Detail / Broadcast, гранаты на карте.
+5. **Display Modes** — Classic / BLAST, Detail / Broadcast, гранаты на карте, задержка вебок (130 / 180 с).
+6. **Webcam Bindings** — ссылки `?view=ID` для каждого игрока.
+7. **Голос TeamSpeak** — сервер, каналы команд, режим (обычно «Авто»).
 
 ### Логотипы команд
 
@@ -191,6 +238,7 @@ dotnet build -c Release
 cs2-pro-hud/
 ├── server/
 │   ├── server.js              # Express + Socket.IO: GSI, киллы, стрик, серия, команды, REST API
+│   ├── ts-audio.js            # голос TeamSpeak: запуск ботов, буфер задержки, выбор команды
 │   └── autoobs/               # автообсерв (по умолчанию отключён)
 │       ├── index.js           #   сборка: вкл/выкл, пауза, журнал, агенты, API
 │       ├── config.js          #   пороги и времена (autoobs.json)
@@ -204,6 +252,9 @@ cs2-pro-hud/
 │   ├── index.html             # основной оверлей
 │   ├── admin.html             # админка
 │   ├── player-card.html       # карточка игрока (/player/1–10)
+│   ├── team-card.html         # вебки команды (/team1, /team2)
+│   ├── ts-audio.html          # проигрыватель голоса TeamSpeak для OBS
+│   ├── webcam-delay.js        # ссылки VDO.Ninja с задержкой (chunked)
 │   ├── main.js                # табло, наблюдаемый игрок, серия, round stats
 │   ├── players.js             # карточки игроков (Classic и BLAST)
 │   ├── topbar-events.js       # крылья BLAST-табло: бомба, дефьюз, ROUND WIN
@@ -217,10 +268,12 @@ cs2-pro-hud/
 │   ├── autoobs-replay.js      # прогон записи GSI без игры
 │   └── autoobs-check.cfg      # проверка команд зрителя в CS2
 ├── docs/autoobs.md            # документация автообсерва
+├── ts/ts-listener.exe         # боты TeamSpeak (собранный ts-listener)
+├── ts-listener/               # исходники ботов TeamSpeak (Rust)
 ├── steam/steam.js             # Steam Web API (аватарки)
 ├── csharp/                    # CounterStrikeSharp-плагин гранат
 ├── cfg/gamestate_integration_prohud.vdf
-├── settings.json              # режимы отображения, команды, серия
+├── settings.json              # режимы отображения, команды, серия, задержка вебок, TeamSpeak
 ├── player-cards.json          # турнир, слоты, ELO/роли, логотипы сторон
 ├── veto.json                  # вето (карты, счёт, пики)
 ├── webcams.json               # SteamID64 → URL вебки
@@ -235,10 +288,15 @@ cs2-pro-hud/
 ```
 CS2 ──POST /──▶ server.js
                  normalizeGSI → детект киллов → стрик → счёт серии (по командам) → логотипы сторон
-                 io.emit("state") ──▶ OBS Browser Source (index.html, player-card.html)
+                 io.emit("state") ──▶ OBS Browser Source (index.html, player-card.html, team-card.html)
                  autoobs.onState() ──▶ агент (Socket.IO /agent) ──▶ клавиши в CS2   [если включён]
 
 CSSharp-плагин ──POST /grenade, /kill──▶ server.js ──▶ io.emit("grenades")
+
+TeamSpeak 3 ──▶ ts-listener.exe (2 бота) ──stdout PCM──▶ ts-audio.js (буфер = задержка вебок)
+                 ──io "ts-pcm"/"ts-mix"──▶ ts-audio.html ──▶ OBS
+
+VDO.Ninja (игрок, ?push&chunked) ──▶ iframe ?view&chunkbuffer=… в HUD / Player Card / team-card
 
 Админка ──POST /api/…──▶ запись JSON ──▶ io.emit(settings | veto | player-cards) ──▶ HUD обновляется сразу
 ```
@@ -253,6 +311,7 @@ CSSharp-плагин ──POST /grenade, /kill──▶ server.js ──▶ io.
 | `GET` | `/api/state` | Текущее состояние игры (отладка) |
 | `GET` | `/admin` | Админка |
 | `GET` | `/player/:slot` | Карточка игрока (1–10) |
+| `GET` | `/team1` · `/team2` | Вебки команды (слоты 1–5 / 6–10) |
 | `GET` | `/api/players` | Игроки текущей игры |
 | `GET/POST` | `/api/settings` | Настройки HUD (режимы, ручной счёт серии) |
 | `GET/POST` | `/api/teams` | Команды: название, логотип, состав |
@@ -260,6 +319,7 @@ CSSharp-плагин ──POST /grenade, /kill──▶ server.js ──▶ io.
 | `GET/POST` | `/api/veto` | Вето: карты, статусы, счёт, пики |
 | `GET/POST` | `/api/player-cards` | Турнир, слоты, ELO/роли, логотипы сторон |
 | `GET/POST` | `/api/webcams` | Вебки |
+| `GET/POST` | `/api/ts` | Голос TeamSpeak: настройки, режим, статус ботов |
 | `GET` | `/api/logos` · `POST /api/logo` · `DELETE /api/logo/:file` | Логотипы команд |
 | `GET/POST` | `/api/steam-key` | Steam API Key |
 | `POST` | `/api/streak` | Ручная установка стрика `{ side, streak }` |
@@ -273,7 +333,7 @@ CSSharp-плагин ──POST /grenade, /kill──▶ server.js ──▶ io.
 | `POST` | `/api/autoobs/flyover/play` · `/stop` · `/record` | Предпросмотр, стоп, запись своей пролётки |
 | `GET/DELETE` | `/api/autoobs/spawns` | Выученные спавны карт |
 
-Socket.IO: `state`, `settings`, `veto`, `player-cards`, `webcams`, `grenades`, `logos-updated`, `autoobs`, `flyover:start`, `flyover:end`; агент — пространство имён `/agent`.
+Socket.IO: `state`, `settings`, `veto`, `player-cards`, `webcams`, `grenades`, `logos-updated`, `autoobs`, `flyover:start`, `flyover:end`, `ts-status`, `ts-mix`, `ts-pcm` (для страницы `ts-audio.html` после `ts-join`); агент — пространство имён `/agent`.
 
 ---
 

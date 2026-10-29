@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Cams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+body{
+  width:100vw;height:100vh;overflow:hidden;
+  background:#070B14;
+  font-family:'Outfit',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+
+#bg_canvas{
+  position:fixed;inset:0;z-index:0;
+  width:100vw;height:100vh;display:block;
+}
+
+/* ── Main card layout ── */
+.card{
+  position:fixed;inset:0;z-index:1;
+  display:flex;flex-direction:column;
+  padding:clamp(14px,3vw,36px);
+  gap:clamp(10px,2vh,22px);
+}
+
+/* ── Top bar: tournament left, score+timer+map right ── */
+.card__top{
+  display:flex;justify-content:space-between;align-items:flex-start;
+  flex-shrink:0;gap:12px;
+}
+
+.tournament{
+  display:flex; flex-direction: column; gap: 15px;
+}
+.t-line{
+  display:block;
+  font-family:'Oswald',sans-serif;
+  letter-spacing:.06em;line-height:1.05;color:#fff;
+}
+.t-line--1{font-size:clamp(18px,4.5vw,56px);font-weight:700;}
+.t-line--2{font-size:clamp(14px,2.6vw,44px);font-weight:600;color:rgba(255,255,255,.7);}
+
+.top-right{
+  display:flex;flex-direction:column;align-items:flex-end;
+  gap:clamp(2px,2vh,15px);flex-shrink:0;
+}
+.score{
+  display:flex;align-items:center;gap:clamp(3px,1vw,8px);
+}
+.score-num{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(18px,5.5vw,48px);letter-spacing:.04em;line-height:1;
+  padding:clamp(1px,.3vh,3px) clamp(5px,1.3vw,11px);border-radius:4px;
+}
+.score-num--ct{color:#3b82f6;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);}
+.score-num--t {color:#fecd06;background:rgba(254,205,6,.12); border:1px solid rgba(254,205,6,.25);}
+.score-sep{font-family:'Bebas Neue',sans-serif;font-size:clamp(12px,3.5vw,30px);color:rgba(255,255,255,.25);}
+
+.round-timer{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(18px,5.5vw,48px);letter-spacing:.08em;line-height:1;
+  color:#fff;text-align:right;transition:color .25s;
+}
+.round-timer.bomb  {color:#ef4444;text-shadow:0 0 18px rgba(239,68,68,.7);animation:bombPulse 1s ease-in-out infinite;}
+.round-timer.freeze{color:rgba(255,255,255,.38);}
+.round-timer.warmup{font-size:clamp(8px,2.2vw,18px);color:rgba(255,255,255,.22);letter-spacing:.2em;}
+.round-timer.hidden{display:none;}
+@keyframes bombPulse{0%,100%{opacity:1;}50%{opacity:.6;}}
+
+.map-pill{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(9px,2.3vw,32px);letter-spacing:.14em;
+  color:rgba(255,255,255,.62);
+  border:1px solid rgba(50,66,168,.4);background:rgba(50,66,168,.1);
+  padding:clamp(1px,.4vh,4px) clamp(5px,1.3vw,11px);border-radius:4px;white-space:nowrap;
+}
+
+/* ── Webcams: 2 rows (3 + 2) ── */
+.cams{
+  flex:1;min-height:0;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;
+  gap:var(--gap,20px);
+}
+.cams__row{display:flex;justify-content:center;gap:var(--gap,20px);}
+.cam{width:var(--camw,400px);display:flex;flex-direction:column;align-items:center;gap:var(--namegap,8px);}
+.cam__box{
+  position:relative;width:100%;aspect-ratio:16/9;
+  border-radius:clamp(6px,1vw,12px);overflow:hidden;
+  border:1px solid rgba(50,66,168,.35);
+  background:rgba(7,11,20,.55);
+  box-shadow:0 0 0 1px rgba(255,255,255,.04),0 0 24px rgba(50,66,168,.18),0 8px 32px rgba(0,0,0,.6);
+}
+.cam__frame,.cam__avatar{position:absolute;inset:0;width:100%;height:100%;border:none;display:none;}
+.cam__avatar{object-fit:cover;}
+.cam.has-webcam .cam__frame{display:block;}
+.cam.has-avatar .cam__avatar{display:block;}
+.cam__slot{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:'Bebas Neue',sans-serif;font-size:calc(var(--camw,400px) * .09);letter-spacing:.14em;
+  color:rgba(255,255,255,.1);
+}
+.cam.has-player .cam__slot{display:none;}
+.cam__name{
+  max-width:100%;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:var(--names,34px);letter-spacing:.05em;line-height:1;
+  color:#fff;text-shadow:0 3px 18px rgba(0,0,0,.7);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.cam.is-dead .cam__name{color:rgba(255,255,255,.45);}
+</style>
+</head>
+<body>
+
+<canvas id="bg_canvas"></canvas>
+
+<div class="card">
+
+  <!-- Top bar -->
+  <div class="card__top" id="card_top">
+    <div class="tournament">
+      <span class="t-line t-line--1" id="t_line1"></span>
+      <span class="t-line t-line--2" id="t_line2"></span>
+    </div>
+    <div class="top-right">
+      <div class="score">
+        <span class="score-num score-num--ct" id="score_ct">0</span>
+        <span class="score-sep">:</span>
+        <span class="score-num score-num--t"  id="score_t">0</span>
+      </div>
+      <div class="round-timer hidden" id="round_timer">—</div>
+      <div class="map-pill" id="map_name">—</div>
+    </div>
+  </div>
+
+  <!-- Webcams -->
+  <div class="cams" id="cams">
+    <div class="cams__row" id="row1"></div>
+    <div class="cams__row" id="row2"></div>
+  </div>
+</div>
+
+<script src="http://localhost:3000/socket.io.min.js"></script>
+<script src="http://localhost:3000/webcam-delay.js"></script>
+<script>
+// ── Canvas background ─────────────────────────────────────────────────────────
+;(function () {
+  const cv  = document.getElementById('bg_canvas')
+  const ctx = cv.getContext('2d')
+  let W, H, dpr
+
+  function resize() {
+    dpr = window.devicePixelRatio || 1
+    W = cv.width  = Math.round(window.innerWidth  * dpr)
+    H = cv.height = Math.round(window.innerHeight * dpr)
+  }
+  resize(); window.addEventListener('resize', resize)
+
+  const ORBS = [
+    { bx:.15, by:.15, ax:.22, ay:.28, fx:.00082, fy:.00113, px:0.00, py:0.00, rad:.52, r:50, g:66,  b:168, a:.56 },
+    { bx:.85, by:.80, ax:.24, ay:.18, fx:.00064, fy:.00089, px:2.10, py:1.30, rad:.46, r:50, g:66,  b:168, a:.52 },
+    { bx:.50, by:.45, ax:.32, ay:.36, fx:.00097, fy:.00073, px:4.20, py:3.50, rad:.38, r:21, g:36,  b:100, a:.48 },
+    { bx:.10, by:.75, ax:.18, ay:.15, fx:.00075, fy:.00101, px:1.00, py:5.00, rad:.44, r:50, g:66,  b:168, a:.40 },
+    { bx:.88, by:.22, ax:.23, ay:.27, fx:.00059, fy:.00094, px:3.30, py:2.10, rad:.34, r:21, g:36,  b:100, a:.38 },
+  ]
+  function drawOrbs(t) {
+    for (const o of ORBS) {
+      const x = (o.bx + Math.sin(t * o.fx + o.px) * o.ax) * W
+      const y = (o.by + Math.sin(t * o.fy + o.py) * o.ay) * H
+      const r = o.rad * Math.min(W, H) * .68
+      const g = ctx.createRadialGradient(x,y,0,x,y,r)
+      g.addColorStop(0,    `rgba(${o.r},${o.g},${o.b},${o.a})`)
+      g.addColorStop(0.42, `rgba(${o.r},${o.g},${o.b},${+(o.a*.28).toFixed(3)})`)
+      g.addColorStop(1,    `rgba(${o.r},${o.g},${o.b},0)`)
+      ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill()
+    }
+  }
+
+  function mkP(sc) {
+    const bright = Math.random() > .5
+    return { x: Math.random()*W, y: sc ? Math.random()*H : H+10,
+      vx:(Math.random()-.5)*.55*dpr, vy:-(Math.random()*.95+.25)*dpr,
+      r:(Math.random()*2.2+.4)*dpr, a:Math.random()*.7+.15,
+      da:Math.random()*.0028+.0008,
+      r8:bright?95:50, g8:bright?120:66, b8:bright?240:168 }
+  }
+  const PARTS = Array.from({length:65},()=>mkP(true))
+  function drawParticles() {
+    for (const p of PARTS) {
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2)
+      ctx.fillStyle=`rgba(${p.r8},${p.g8},${p.b8},${p.a.toFixed(3)})`; ctx.fill()
+      p.x+=p.vx; p.y+=p.vy; p.a-=p.da
+      if (p.y<-20||p.a<=0) Object.assign(p,mkP(false))
+    }
+  }
+
+  const streaks=[]; let nextSF=200+Math.random()*220
+  function mkS(){return{f:0,dur:80+Math.random()*70,x:(.05+Math.random()*.7)*W,a:.10+Math.random()*.09,w:(1.2+Math.random()*1.8)*dpr}}
+  function drawStreaks(fr) {
+    if(fr>=nextSF){streaks.push(mkS());nextSF=fr+480+Math.random()*400}
+    const d=Math.sqrt(W*W+H*H)
+    for(let i=streaks.length-1;i>=0;i--){
+      const s=streaks[i]; s.f++
+      if(s.f>s.dur){streaks.splice(i,1);continue}
+      const al=Math.sin(s.f/s.dur*Math.PI)*s.a
+      ctx.save(); ctx.translate(s.x,0); ctx.rotate(-Math.PI/5.8)
+      const sg=ctx.createLinearGradient(0,0,0,d)
+      sg.addColorStop(0,   `rgba(100,150,255,0)`)
+      sg.addColorStop(0.12,`rgba(100,150,255,${+(al*.45).toFixed(3)})`)
+      sg.addColorStop(0.5, `rgba(170,210,255,${+al.toFixed(3)})`)
+      sg.addColorStop(0.88,`rgba(100,150,255,${+(al*.45).toFixed(3)})`)
+      sg.addColorStop(1,   `rgba(100,150,255,0)`)
+      ctx.fillStyle=sg; ctx.fillRect(-s.w/2,-d*.05,s.w,d*1.1); ctx.restore()
+    }
+  }
+
+  let frame=0
+  function loop(ts){
+    frame++
+    ctx.fillStyle='#070B14'; ctx.fillRect(0,0,W,H)
+    drawOrbs(ts); drawParticles(); drawStreaks(frame)
+    requestAnimationFrame(loop)
+  }
+  requestAnimationFrame(loop)
+})()
+
+// ── Team + slots ──────────────────────────────────────────────────────────────
+// /team1 → слоты 1–5, /team2 → слоты 6–10 (слот 10 = observer_slot 0)
+const TEAM  = /team2/.test(location.pathname) || new URLSearchParams(location.search).get('team') === '2' ? 2 : 1
+const SLOTS = TEAM === 1 ? [1,2,3,4,5] : [6,7,8,9,10]
+document.title = 'Team ' + TEAM + ' Cams'
+
+const MAP_SHORT = {
+  de_dust2:'DUST2',de_mirage:'MIRAGE',de_inferno:'INFERNO',de_overpass:'OVERPASS',
+  de_vertigo:'VERTIGO',de_ancient:'ANCIENT',de_anubis:'ANUBIS',de_nuke:'NUKE',de_cache:'CACHE',
+}
+
+let config   = {tournament:['',''],players:{}}
+let webcams  = {}
+let vetoMaps = []
+let lastState = null
+let webcamDelay = 0       // seconds, from settings.webcam_delay
+let settingsLoaded = false
+
+// ── Build 5 cells: 3 on top, 2 below ─────────────────────────────────────────
+const cells = SLOTS.map((slot, i) => {
+  const el = document.createElement('div')
+  el.className = 'cam'
+  el.innerHTML = `
+    <div class="cam__box">
+      <iframe class="cam__frame" allow="autoplay;camera;microphone" allowfullscreen></iframe>
+      <img class="cam__avatar" alt="">
+      <div class="cam__slot">SLOT ${slot}</div>
+    </div>
+    <div class="cam__name">—</div>`
+  document.getElementById(i < 3 ? 'row1' : 'row2').appendChild(el)
+  return {
+    slot, el,
+    frame:  el.querySelector('.cam__frame'),
+    avatar: el.querySelector('.cam__avatar'),
+    name:   el.querySelector('.cam__name'),
+    url: null, sid: null,
+  }
+})
+
+// ── Layout: fit 2 rows of 16:9 boxes + names into the free space ─────────────
+function layout() {
+  const cams = document.getElementById('cams')
+  const W = cams.clientWidth, H = cams.clientHeight
+  const gap = Math.max(10, Math.round(Math.min(window.innerWidth, window.innerHeight) * 0.025))
+  const nameH = Math.max(18, Math.round(window.innerHeight * 0.045))
+  const nameGap = Math.round(nameH * 0.25)
+  const byW = (W - gap * 2) / 3
+  const byH = ((H - gap) / 2 - nameH - nameGap) * 16 / 9
+  const camw = Math.max(60, Math.floor(Math.min(byW, byH)))
+  const root = document.documentElement.style
+  root.setProperty('--camw', camw + 'px')
+  root.setProperty('--gap', gap + 'px')
+  root.setProperty('--names', nameH + 'px')
+  root.setProperty('--namegap', nameGap + 'px')
+}
+window.addEventListener('resize', layout)
+layout()
+document.fonts?.ready.then(layout)
+// шапка может поменять высоту (шрифты, таймер) — пересчитываем при любом изменении
+if (window.ResizeObserver) new ResizeObserver(layout).observe(document.getElementById('cams'))
+
+// ── Round timer ───────────────────────────────────────────────────────────────
+let _timerEnd   = 0
+let _timerPhase = ''
+
+function syncTimer(phase, secLeft) {
+  _timerPhase = phase
+  if (secLeft > 0) _timerEnd = Date.now() + secLeft * 1000
+}
+
+function fmtTime(sec) {
+  const s = Math.max(0, Math.ceil(sec))
+  return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')
+}
+
+setInterval(() => {
+  const el = document.getElementById('round_timer')
+  if (!el) return
+  const rem = Math.max(0, (_timerEnd - Date.now()) / 1000)
+  if (!_timerPhase || _timerPhase === 'gameover') { el.className = 'round-timer hidden'; return }
+  if (_timerPhase === 'warmup') { el.textContent = 'WARMUP'; el.className = 'round-timer warmup'; return }
+  el.textContent = fmtTime(rem)
+  if (_timerPhase === 'planted' || _timerPhase === 'defusing') el.className = 'round-timer bomb'
+  else if (_timerPhase === 'freezetime') el.className = 'round-timer freeze'
+  else el.className = 'round-timer'
+}, 50)
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getMapDisplay() {
+  const a = vetoMaps.find(m=>m.status==='active')
+  if (a) return MAP_SHORT[a.name]||a.name.replace('de_','').toUpperCase()
+  if (lastState?.map?.name) { const n=lastState.map.name; return MAP_SHORT[n]||n.replace('de_','').toUpperCase() }
+  return ''
+}
+function findPlayer(state, slot) {
+  const fixedSid = config.slots?.[String(slot)]
+  if (fixedSid && state.allplayers?.[fixedSid]) return { steamid: fixedSid, ...state.allplayers[fixedSid] }
+  const obsSlot = slot === 10 ? 0 : slot
+  for (const [sid,p] of Object.entries(state.allplayers||{})) {
+    if (p.observer_slot===obsSlot) return {steamid:sid,...p}
+  }
+  return null
+}
+
+// ── Update ────────────────────────────────────────────────────────────────────
+function updateCell(c, player) {
+  c.el.classList.toggle('has-player', !!player)
+  if (!player) {
+    c.name.textContent = '—'
+    c.el.classList.remove('is-dead')
+    return
+  }
+  c.name.textContent = player.name || ''
+  c.el.classList.toggle('is-dead', (player.state?.health ?? 100) <= 0)
+
+  if (!settingsLoaded) return
+  const raw = webcams[player.steamid]
+  const url = raw ? buildWebcamUrl(raw, webcamDelay) : null
+  if (url === c.url && player.steamid === c.sid) return
+  c.url = url; c.sid = player.steamid
+  c.el.classList.remove('has-webcam', 'has-avatar')
+  if (url) {
+    c.frame.src = url                     // буфер задержки копится, пока игрок в этом слоте
+    c.el.classList.add('has-webcam')
+  } else {
+    c.frame.src = 'about:blank'
+    c.avatar.src = `/avatar/${player.steamid}`
+    c.el.classList.add('has-avatar')
+  }
+}
+
+function update(state) {
+  lastState = state
+  document.getElementById('t_line1').textContent = config.tournament?.[0]||''
+  document.getElementById('t_line2').textContent = config.tournament?.[1]||''
+  document.getElementById('map_name').textContent = getMapDisplay()||'—'
+  document.getElementById('score_ct').textContent = state.map?.team_ct?.score ?? 0
+  document.getElementById('score_t').textContent  = state.map?.team_t?.score  ?? 0
+  syncTimer(state.round?.phase||'', parseFloat(state.phase_countdowns?.phase_ends_in ?? 0))
+  for (const c of cells) updateCell(c, findPlayer(state, c.slot))
+}
+
+// ── Socket.IO ─────────────────────────────────────────────────────────────────
+const socket = io()
+socket.on('state',        s => update(s))
+socket.on('veto',         d => { vetoMaps=d.maps||[]; if(lastState)update(lastState) })
+socket.on('player-cards', d => { config=d;            if(lastState)update(lastState) })
+socket.on('webcams',      d => { webcams=d;            if(lastState)update(lastState) })
+socket.on('settings',     s => { webcamDelay=Number(s.webcam_delay)||0; settingsLoaded=true; if(lastState)update(lastState) })
+
+;(async()=>{
+  try {
+    const [c,w] = await Promise.all([
+      fetch('/api/player-cards').then(r=>r.json()),
+      fetch('/api/webcams').then(r=>r.json()),
+    ])
+    config=c; webcams=w
+    if (lastState) update(lastState)
+  } catch {}
+})()
+</script>
+</body>
+</html>

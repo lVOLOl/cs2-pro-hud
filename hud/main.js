@@ -5,14 +5,18 @@ let _webcams = {}
 let _webcamIframes = {}   // steamid → <iframe>
 let _activeWebcamSid = null
 
+let _webcamDelay = 0         // seconds, from settings.webcam_delay
+let _webcamSettingsLoaded = false
+
 function makeWebcamUrl(raw) {
-  if (!raw) return ""
-  return raw.includes("autoplay=") ? raw : raw + (raw.includes("?") ? "&" : "?") + "autoplay=1"
+  return buildWebcamUrl(raw, _webcamDelay)   // hud/webcam-delay.js
 }
 
 function syncWebcamPool() {
   const pool = document.getElementById("observed_webcam_pool")
   if (!pool) return
+  // wait for settings so iframes are not loaded twice (without and then with delay)
+  if (!_webcamSettingsLoaded) return
 
   // Create iframes for new entries
   for (const sid in _webcams) {
@@ -24,8 +28,13 @@ function syncWebcamPool() {
       f.allow = "autoplay; camera; microphone; fullscreen"
       f.allowFullscreen = true
       f.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:none;background:#000;visibility:hidden;pointer-events:none;"
+      f.dataset.url = url
       pool.appendChild(f)
       _webcamIframes[sid] = f
+    } else if (_webcamIframes[sid].dataset.url !== url) {
+      // link or delay changed — reload this iframe (delay buffer starts over)
+      _webcamIframes[sid].src = url
+      _webcamIframes[sid].dataset.url = url
     }
   }
 
@@ -93,6 +102,12 @@ socket.on("settings", settings => {
   if (typeof _showGrenades !== "undefined") _showGrenades = settings.show_grenades !== false
   if (typeof setCardStyle === "function") setCardStyle(settings.card_style)
   if (typeof infoPanelSetTeams === "function") infoPanelSetTeams(settings.teams)
+  const delay = Number(settings.webcam_delay) || 0
+  if (!_webcamSettingsLoaded || delay !== _webcamDelay) {
+    _webcamDelay = delay
+    _webcamSettingsLoaded = true
+    syncWebcamPool()
+  }
 })
 
 socket.on("grenades", grenades => {

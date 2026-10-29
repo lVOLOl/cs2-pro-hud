@@ -1,6 +1,6 @@
 {
   "obs_mode": "broadcast",
-  "show_grenades": true,
+  "show_grenades": false,
   "card_style": "blast",
   "series": {
     "wins": {
@@ -16,5 +16,6 @@
   },
   "autoobs": {
     "enabled": false
-  }
+  },
+  "webcam_delay": 10
 }

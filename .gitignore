@@ -8,3 +8,14 @@
 /recordings
 autoobs.log
 spawns.json
+
+# ключи ботов TeamSpeak и сборка ts-listener
+ts/ts-identities.txt
+ts-listener/target
+
+# промежуточная сборка .exe
+/build
+
+# архивы сборки
+/cs2-pro-hud-*.7z
+/dist.rar

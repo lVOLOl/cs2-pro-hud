@@ -1,5 +1,7 @@
 const path = require("path")
-const _baseDir = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, "..")
+// Собранный .exe (pkg или Node SEA) читает файлы из своей папки, иначе — из корня проекта
+const IS_EXE = !!process.pkg || (() => { try { return require("node:sea").isSea() } catch { return false } })()
+const _baseDir = IS_EXE ? path.dirname(process.execPath) : path.join(__dirname, "..")
 require("dotenv").config({ path: path.join(_baseDir, ".env") })
 const express = require("express")
 const bodyParser = require("body-parser")
@@ -8,8 +10,9 @@ const fs = require("fs")
 const { Server } = require("socket.io")
 const { getAvatar } = require("../steam/steam.js")
 const { createAutoObserve } = require("./autoobs/index.js")
+const { createTsAudio } = require("./ts-audio.js")
 
-const BASE_DIR = process.pkg ? path.dirname(process.execPath) : path.join(__dirname, "..")
+const BASE_DIR = _baseDir
 const CS2_OVERVIEWS = path.join(BASE_DIR, "hud", "assets", "overviews", "radar")
 
 function parseKV(text) {
@@ -693,6 +696,10 @@ app.get("/api/series", (req, res) => res.json(computeSeries(gameState || {})))
 const autoObs = createAutoObserve({ baseDir: BASE_DIR, loadSettings, saveSettings, io })
 autoObs.registerRoutes(app, express)
 
+// ── Голос TeamSpeak с задержкой (server/ts-audio.js) ─────────────────────
+const tsAudio = createTsAudio({ baseDir: BASE_DIR, loadSettings, saveSettings, io, getState: () => gameState, loadTeams })
+tsAudio.registerRoutes(app, express)
+
 // ── Webcam mappings (steamid64 → vdo.ninja URL) ──────────────────────────────
 const WEBCAMS_FILE = path.join(BASE_DIR, "webcams.json")
 
@@ -714,6 +721,7 @@ app.post("/api/webcams", express.json(), (req, res) => {
   if (url) data[steamid] = url
   else delete data[steamid]
   saveWebcams(data)
+  io.emit("webcams", data)   // player cards get new bindings without reload
   res.json({ ok: true })
 })
 
@@ -808,6 +816,11 @@ app.post("/api/player-cards", express.json(), (req, res) => {
   io.emit("player-cards", current)
   if (team_logos) emitSeriesUpdate()
   res.json({ ok: true })
+})
+
+// Вебки команды: /team1 — слоты 1–5, /team2 — слоты 6–10
+app.get(["/team1", "/team2"], (req, res) => {
+  res.sendFile(path.join(BASE_DIR, "hud", "team-card.html"))
 })
 
 app.use(express.static(path.join(BASE_DIR, "hud")))

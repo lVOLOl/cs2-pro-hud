@@ -1,0 +1,17 @@
+[package]
+name = "ts-listener"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tsclientlib = { git = "https://github.com/ReSpeak/tsclientlib", rev = "ee3bc6f45a7137db7793ba5593a321df400d53e5", default-features = false, features = ["audio"] }
+tsproto-packets = { git = "https://github.com/ReSpeak/tsclientlib", rev = "ee3bc6f45a7137db7793ba5593a321df400d53e5" }
+futures = "0.3"
+tokio = { version = "1", features = ["rt", "macros", "time"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
